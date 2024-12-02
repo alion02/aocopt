@@ -6,17 +6,21 @@
 
 use std::fmt::Display;
 
-static mut ARRAYS: [[u8; 90000]; 128] = [[0; 90000]; 128];
+#[repr(align(32))]
+#[derive(Clone, Copy)]
+struct Arr([u8; 90000]);
+
+static mut ARRAYS: [Arr; 128] = [Arr([0; 90000]); 128];
 static mut CLEAN_ARR: usize = 128;
 
 macro_rules! get_arr {
     () => {
         if CLEAN_ARR > 0 {
             CLEAN_ARR -= 1;
-            &mut ARRAYS[CLEAN_ARR]
+            &mut ARRAYS[CLEAN_ARR].0
         } else {
-            ARRAYS[0].fill(0);
-            &mut ARRAYS[0]
+            ARRAYS[0].0.fill(0);
+            &mut ARRAYS[0].0
         }
     };
 }
