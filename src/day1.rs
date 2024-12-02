@@ -13,9 +13,9 @@ use std::{
 
 #[repr(align(32))]
 #[derive(Clone, Copy)]
-struct Arr([u8; 90032]);
+struct Arr([u8; 90064]);
 
-static mut ARRAYS: [Arr; 128] = [Arr([0; 90032]); 128];
+static mut ARRAYS: [Arr; 128] = [Arr([0; 90064]); 128];
 static mut CLEAN_ARR: usize = 128;
 
 macro_rules! get_arr {
@@ -32,7 +32,7 @@ macro_rules! get_arr {
 
 #[inline]
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn preprocess(s: &str, left: &mut [u8; 90032], right: &mut [u8; 90032]) {
+unsafe fn preprocess(s: &str, left: &mut [u8; 90064], right: &mut [u8; 90064]) {
     let s = s.as_bytes();
 
     let mut i = 0;
@@ -221,7 +221,7 @@ unsafe fn inner2(s: &str) -> impl Display {
 
     for _ in 0..1000 {
         loop {
-            let left_chunk = (left.get_unchecked(i) as *const _ as *const u8x32).read_unaligned();
+            let left_chunk = (left.get_unchecked(i) as *const _ as *const u8x64).read_unaligned();
             if left_chunk.reduce_or() != 0 {
                 i += left_chunk
                     .simd_ne(Simd::splat(0))
@@ -229,19 +229,12 @@ unsafe fn inner2(s: &str) -> impl Display {
                     .trailing_zeros() as usize;
                 break;
             }
-            i += 32;
+            i += 64;
         }
 
-        let mut iters = *left.get_unchecked(i);
-        loop {
-            sum += (i as u32 + 10000) * *right.get_unchecked(i) as u32;
-            iters -= 1;
-            if iters == 0 {
-                break;
-            }
-        }
+        sum += (i as u32 + 10000) * *right.get_unchecked(i) as u32;
 
-        i += 1;
+        *left.get_unchecked_mut(i) -= 1;
     }
 
     sum
