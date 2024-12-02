@@ -55,7 +55,7 @@ pub fn part1(s: &str) -> impl Display {
                 }
             }
 
-            sum += left[i].abs_diff(right[j]);
+            sum += i.abs_diff(j);
 
             left[i] -= 1;
             right[j] -= 1;
@@ -116,7 +116,7 @@ pub fn part2(s: &str) -> impl Display {
                 }
             }
 
-            sum += left[i].abs_diff(right[j]);
+            sum += i.abs_diff(j);
 
             left[i] -= 1;
             right[j] -= 1;
