@@ -232,7 +232,15 @@ unsafe fn inner2(s: &str) -> impl Display {
             i += 32;
         }
 
-        sum += (i as u32 + 10000) * *left.get_unchecked(i) as u32 * *right.get_unchecked(i) as u32;
+        let mut iters = *left.get_unchecked(i);
+        loop {
+            sum += (i as u32 + 10000) * *right.get_unchecked(i) as u32;
+            iters -= 1;
+            if iters == 0 {
+                break;
+            }
+        }
+
         i += 1;
     }
 
