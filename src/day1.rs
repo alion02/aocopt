@@ -38,8 +38,13 @@ unsafe fn preprocess(s: &str, left: &mut [u8; 90032], right: &mut [u8; 90032]) {
     let mut i = 0;
 
     while i < s.len() {
-        let chunk =
-            (s.get_unchecked(i) as *const _ as *const u8x32).read_unaligned() - Simd::splat(b'0');
+        let chunk = (s.get_unchecked(i) as *const _ as *const u8x32).read_unaligned()
+            - u8x32::from_array([
+                b'1', b'0', b'0', b'0', b'0', b'0', b'0', b'0', //
+                b'1', b'0', b'0', b'0', b'0', b'0', b'0', b'0', //
+                b'1', b'0', b'0', b'0', b'0', b'0', b'0', b'0', //
+                b'1', b'0', b'0', b'0', b'0', b'0', b'0', b'0', //
+            ]);
         let shuffled_chunk = simd_swizzle!(chunk, [
             00, 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13, 13, 13, //
             14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 27, 27, //
@@ -74,10 +79,10 @@ unsafe fn preprocess(s: &str, left: &mut [u8; 90032], right: &mut [u8; 90032]) {
         let a2 = s4[4];
         let b2 = s4[5];
 
-        *left.get_unchecked_mut(a1 as usize - 10000) += 1;
-        *left.get_unchecked_mut(a2 as usize - 10000) += 1;
-        *right.get_unchecked_mut(b1 as usize - 10000) += 1;
-        *right.get_unchecked_mut(b2 as usize - 10000) += 1;
+        *left.get_unchecked_mut(a1 as usize) += 1;
+        *left.get_unchecked_mut(a2 as usize) += 1;
+        *right.get_unchecked_mut(b1 as usize) += 1;
+        *right.get_unchecked_mut(b2 as usize) += 1;
 
         i += 28;
     }
