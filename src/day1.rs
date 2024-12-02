@@ -122,9 +122,13 @@ unsafe fn inner2(s: &str) -> impl Display {
 
     let mut sum = 0u32;
 
-    for _ in 0..1000 {
+    'outer: loop {
         while left[i] == 0 {
             i += 1;
+
+            if i == 90000 {
+                break 'outer;
+            }
         }
 
         sum += (i as u32 + 10000) * right[i] as u32;
