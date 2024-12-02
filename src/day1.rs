@@ -29,7 +29,9 @@ macro_rules! get_arr {
 unsafe fn preprocess(s: &str, left: &mut [u8; 90032], right: &mut [u8; 90032]) {
     let s = s.as_bytes();
 
-    for i in (0..).step_by(14).take(1000) {
+    let mut i = 0;
+
+    while i < 14000 {
         let a = *s.get_unchecked(i + 0) as u32 * 10000
             + *s.get_unchecked(i + 1) as u32 * 1000
             + *s.get_unchecked(i + 2) as u32 * 100
@@ -47,6 +49,8 @@ unsafe fn preprocess(s: &str, left: &mut [u8; 90032], right: &mut [u8; 90032]) {
             - 543328;
 
         *right.get_unchecked_mut(b as usize) += 1;
+
+        i += 14;
     }
 }
 
