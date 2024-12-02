@@ -33,8 +33,8 @@ unsafe fn inner1(s: &str) -> impl Display {
         *right.get_unchecked_mut(b as usize) += 1;
     }
 
-    let mut i = 10000;
-    let mut j = 10000;
+    let mut i = 0;
+    let mut j = 0;
 
     let mut sum = 0;
 
@@ -90,7 +90,7 @@ unsafe fn inner2(s: &str) -> impl Display {
         *right.get_unchecked_mut(b as usize) += 1;
     }
 
-    let mut i = 10000;
+    let mut i = 0;
 
     let mut sum = 0u32;
 
@@ -103,7 +103,7 @@ unsafe fn inner2(s: &str) -> impl Display {
             }
         }
 
-        sum += i as u32 * right[i] as u32;
+        sum += (i as u32 + 10000) * right[i] as u32;
 
         left[i] -= 1;
     }
