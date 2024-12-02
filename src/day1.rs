@@ -38,20 +38,19 @@ unsafe fn preprocess(s: &str, left: &mut [u8; 90032], right: &mut [u8; 90032]) {
     let mut i = 0;
 
     while i < s.len() {
-        let chunk = (s.get_unchecked(i) as *const _ as *const u8x32).read_unaligned()
-            - u8x32::from_array([
-                b'1', b'0', b'0', b'0', b'0', b'0', b'0', b'0', //
-                b'1', b'0', b'0', b'0', b'0', b'0', b'0', b'0', //
-                b'1', b'0', b'0', b'0', b'0', b'0', b'0', b'0', //
-                b'1', b'0', b'0', b'0', b'0', b'0', b'0', b'0', //
-            ]);
-        let shuffled_chunk = simd_swizzle!(chunk, [
+        let chunk = (s.get_unchecked(i) as *const _ as *const u8x32).read_unaligned();
+        let adj_chunk = simd_swizzle!(chunk, [
             00, 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13, 13, 13, //
             14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 27, 27, //
+        ]) - u8x32::from_array([
+            b'1', b'0', b'0', b'0', b'0', b'0', b'0', b'0', //
+            b'1', b'0', b'0', b'0', b'0', b'0', b'0', b'0', //
+            b'1', b'0', b'0', b'0', b'0', b'0', b'0', b'0', //
+            b'1', b'0', b'0', b'0', b'0', b'0', b'0', b'0', //
         ]);
 
         let s1 = _mm256_maddubs_epi16(
-            shuffled_chunk.into(),
+            adj_chunk.into(),
             u8x32::from_array([
                 10, 1, 10, 1, 1, 0, 0, 0, 10, 1, 10, 1, 1, 0, 0, 0, //
                 10, 1, 10, 1, 1, 0, 0, 0, 10, 1, 10, 1, 1, 0, 0, 0, //
