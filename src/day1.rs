@@ -30,7 +30,7 @@ macro_rules! get_arr {
     };
 }
 
-#[inline(never)]
+#[inline]
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn preprocess(s: &str, left: &mut [u8; 90032], right: &mut [u8; 90032]) {
     let s = s.as_bytes();
