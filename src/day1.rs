@@ -24,6 +24,7 @@ macro_rules! get_arr {
     };
 }
 
+#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn inner1(s: &str) -> impl Display {
     let s = s.as_bytes();
 
@@ -81,6 +82,7 @@ unsafe fn inner1(s: &str) -> impl Display {
     sum
 }
 
+#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn inner2(s: &str) -> impl Display {
     let s = s.as_bytes();
 
