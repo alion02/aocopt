@@ -6,11 +6,29 @@
 
 use std::fmt::Display;
 
+#[thread_local]
+static mut ARRAYS: [[u8; 90000]; 128] = [[0; 90000]; 128];
+
+#[thread_local]
+static mut CLEAN: usize = 128;
+
+macro_rules! get_arr {
+    () => {
+        if CLEAN > 0 {
+            CLEAN -= 1;
+            &mut ARRAYS[CLEAN]
+        } else {
+            ARRAYS[0].fill(0);
+            &mut ARRAYS[0]
+        }
+    };
+}
+
 unsafe fn inner1(s: &str) -> impl Display {
     let s = s.as_bytes();
 
-    let mut left = [0u8; 90000];
-    let mut right = [0u8; 90000];
+    let left = get_arr!();
+    let right = get_arr!();
 
     for i in (0..).step_by(14).take(1000) {
         let a = *s.get_unchecked(i + 0) as u32 * 10000
@@ -66,8 +84,8 @@ unsafe fn inner1(s: &str) -> impl Display {
 unsafe fn inner2(s: &str) -> impl Display {
     let s = s.as_bytes();
 
-    let mut left = [0u8; 90000];
-    let mut right = [0u8; 90000];
+    let left = get_arr!();
+    let right = get_arr!();
 
     for i in (0..).step_by(14).take(1000) {
         let a = *s.get_unchecked(i + 0) as u32 * 10000
