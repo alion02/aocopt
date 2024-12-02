@@ -8,7 +8,7 @@
 use std::{
     arch::x86_64::{__m256i, _mm256_madd_epi16, _mm256_maddubs_epi16},
     fmt::Display,
-    mem::MaybeUninit,
+    mem::{transmute, MaybeUninit},
     simd::prelude::*,
 };
 
@@ -16,12 +16,15 @@ use std::{
 #[derive(Clone, Copy)]
 struct Arr([u8; 90032]);
 
-#[inline]
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn preprocess(s: &str, left: &mut [u8; 90032], right: &mut [u8; 90032]) {
+unsafe fn inner1(s: &str) -> impl Display {
+    let mut left = [MaybeUninit::uninit(); 1000];
+    let mut right = [MaybeUninit::uninit(); 1000];
+
     let s = s.as_bytes();
 
     let mut i = 0;
+    let mut arr_i = 0;
 
     while i < 14000 - 28 {
         let chunk = (s.get_unchecked(i) as *const _ as *const u8x32).read_unaligned();
@@ -64,12 +67,13 @@ unsafe fn preprocess(s: &str, left: &mut [u8; 90032], right: &mut [u8; 90032]) {
         let a2 = s4[4];
         let b2 = s4[5];
 
-        *left.get_unchecked_mut(a1 as usize) += 1;
-        *left.get_unchecked_mut(a2 as usize) += 1;
-        *right.get_unchecked_mut(b1 as usize) += 1;
-        *right.get_unchecked_mut(b2 as usize) += 1;
+        left.get_unchecked_mut(arr_i).write(a1);
+        left.get_unchecked_mut(arr_i + 1).write(a2);
+        right.get_unchecked_mut(arr_i).write(b1);
+        right.get_unchecked_mut(arr_i + 1).write(b2);
 
         i += 28;
+        arr_i += 2;
     }
 
     let chunk = (s.get_unchecked(i - 4) as *const _ as *const u8x32).read_unaligned();
@@ -142,68 +146,21 @@ unsafe fn preprocess(s: &str, left: &mut [u8; 90032], right: &mut [u8; 90032]) {
     let a2 = s4[4];
     let b2 = s4[5];
 
-    *left.get_unchecked_mut(a1 as usize) += 1;
-    *left.get_unchecked_mut(a2 as usize) += 1;
-    *right.get_unchecked_mut(b1 as usize) += 1;
-    *right.get_unchecked_mut(b2 as usize) += 1;
-}
+    left.get_unchecked_mut(arr_i).write(a1);
+    left.get_unchecked_mut(arr_i + 1).write(a2);
+    right.get_unchecked_mut(arr_i).write(b1);
+    right.get_unchecked_mut(arr_i + 1).write(b2);
 
-#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn inner1(s: &str) -> impl Display {
-    static mut ARRAYS: [Arr; 128] = [Arr([0; 90032]); 128];
-    static mut CLEAN_ARR: usize = 128;
+    let mut left: [u32; 1000] = transmute(left);
+    let mut right: [u32; 1000] = transmute(right);
 
-    macro_rules! get_arr {
-        () => {
-            if CLEAN_ARR > 0 {
-                CLEAN_ARR -= 1;
-                &mut ARRAYS[CLEAN_ARR].0
-            } else {
-                ARRAYS[0].0.fill(0);
-                &mut ARRAYS[0].0
-            }
-        };
-    }
-
-    let left = get_arr!();
-    let right = get_arr!();
-
-    preprocess(s, left, right);
-
-    let mut i = 0;
-    let mut j = 0;
+    left.sort_unstable();
+    right.sort_unstable();
 
     let mut sum = 0;
 
-    for _ in 0..1000 {
-        loop {
-            let left_chunk = (left.get_unchecked(i) as *const _ as *const u8x32).read_unaligned();
-            if left_chunk.reduce_or() != 0 {
-                i += left_chunk
-                    .simd_ne(Simd::splat(0))
-                    .to_bitmask()
-                    .trailing_zeros() as usize;
-                break;
-            }
-            i += 32;
-        }
-
-        loop {
-            let right_chunk = (right.get_unchecked(j) as *const _ as *const u8x32).read_unaligned();
-            if right_chunk.reduce_or() != 0 {
-                j += right_chunk
-                    .simd_ne(Simd::splat(0))
-                    .to_bitmask()
-                    .trailing_zeros() as usize;
-                break;
-            }
-            j += 32;
-        }
-
-        sum += i.abs_diff(j) as u32;
-
-        *left.get_unchecked_mut(i) -= 1;
-        *right.get_unchecked_mut(j) -= 1;
+    for i in 0..1000 {
+        sum += left[i].abs_diff(right[i]);
     }
 
     sum
