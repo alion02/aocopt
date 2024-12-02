@@ -73,21 +73,13 @@ unsafe fn inner1(s: &str) -> impl Display {
 
     let mut sum = 0;
 
-    'outer: loop {
+    for _ in 0..1000 {
         while *left.get_unchecked(i) == 0 {
             i += 1;
-
-            if i == 90000 {
-                break 'outer;
-            }
         }
 
         while *right.get_unchecked(j) == 0 {
             j += 1;
-
-            if j == 90000 {
-                break 'outer;
-            }
         }
 
         sum += i.abs_diff(j) as u32;
@@ -130,13 +122,9 @@ unsafe fn inner2(s: &str) -> impl Display {
 
     let mut sum = 0u32;
 
-    'outer: loop {
+    for _ in 0..1000 {
         while left[i] == 0 {
             i += 1;
-
-            if i == 90000 {
-                break 'outer;
-            }
         }
 
         sum += (i as u32 + 10000) * right[i] as u32;
