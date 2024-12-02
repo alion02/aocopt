@@ -123,8 +123,16 @@ unsafe fn inner2(s: &str) -> impl Display {
     let mut sum = 0u32;
 
     for _ in 0..1000 {
-        while *left.get_unchecked(i) == 0 {
-            i += 1;
+        loop {
+            let left_chunk = (left.get_unchecked(i) as *const _ as *const u8x32).read_unaligned();
+            if left_chunk.reduce_or() != 0 {
+                i += left_chunk
+                    .simd_ne(Simd::splat(0))
+                    .to_bitmask()
+                    .trailing_zeros() as usize;
+                break;
+            }
+            i += 32;
         }
 
         sum += (i as u32 + 10000) * *right.get_unchecked(i) as u32;
