@@ -200,7 +200,7 @@ unsafe fn inner1(s: &str) -> impl Display {
             j += 32;
         }
 
-        sum += (i as i32 - j as i32).unsigned_abs();
+        sum += i.abs_diff(j) as u32;
 
         *left.get_unchecked_mut(i) -= 1;
         *right.get_unchecked_mut(j) -= 1;
