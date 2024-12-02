@@ -4,7 +4,6 @@
     clippy::identity_op
 )]
 
-// comment to test stability
 use std::fmt::Display;
 
 unsafe fn inner1(s: &str) -> impl Display {
