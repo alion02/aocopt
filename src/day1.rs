@@ -7,16 +7,31 @@
 use std::fmt::Display;
 
 static mut ARRAYS: [[u8; 90000]; 128] = [[0; 90000]; 128];
-static mut CLEAN: usize = 128;
+static mut CLEAN_ARR: usize = 128;
+
+static mut BITS: [[u64; 1407]; 128] = [[0; 1407]; 128];
+static mut CLEAN_BITS: usize = 128;
 
 macro_rules! get_arr {
     () => {
-        if CLEAN > 0 {
-            CLEAN -= 1;
-            &mut ARRAYS[CLEAN]
+        if CLEAN_ARR > 0 {
+            CLEAN_ARR -= 1;
+            &mut ARRAYS[CLEAN_ARR]
         } else {
             ARRAYS[0].fill(0);
             &mut ARRAYS[0]
+        }
+    };
+}
+
+macro_rules! get_bits {
+    () => {
+        if CLEAN_BITS > 0 {
+            CLEAN_BITS -= 1;
+            &mut BITS[CLEAN_BITS]
+        } else {
+            BITS[0].fill(0);
+            &mut BITS[0]
         }
     };
 }
@@ -28,6 +43,9 @@ unsafe fn inner1(s: &str) -> impl Display {
     let left = get_arr!();
     let right = get_arr!();
 
+    let left_bits = get_bits!();
+    let right_bits = get_bits!();
+
     for i in (0..).step_by(14).take(1000) {
         let a = *s.get_unchecked(i + 0) as u32 * 10000
             + *s.get_unchecked(i + 1) as u32 * 1000
@@ -37,6 +55,7 @@ unsafe fn inner1(s: &str) -> impl Display {
             - 543328;
 
         *left.get_unchecked_mut(a as usize) += 1;
+        *left_bits.get_unchecked_mut(a as usize / 64) |= 1u64.wrapping_shl(a);
 
         let b = *s.get_unchecked(i + 8) as u32 * 10000
             + *s.get_unchecked(i + 9) as u32 * 1000
@@ -46,6 +65,7 @@ unsafe fn inner1(s: &str) -> impl Display {
             - 543328;
 
         *right.get_unchecked_mut(b as usize) += 1;
+        *right_bits.get_unchecked_mut(a as usize / 64) |= 1u64.wrapping_shl(b);
     }
 
     let mut i = 0;
