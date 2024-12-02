@@ -6,10 +6,7 @@
 
 use std::fmt::Display;
 
-#[thread_local]
 static mut ARRAYS: [[u8; 90000]; 128] = [[0; 90000]; 128];
-
-#[thread_local]
 static mut CLEAN: usize = 128;
 
 macro_rules! get_arr {
