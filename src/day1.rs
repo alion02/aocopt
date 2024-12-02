@@ -232,9 +232,8 @@ unsafe fn inner2(s: &str) -> impl Display {
             i += 32;
         }
 
-        sum += (i as u32 + 10000) * *right.get_unchecked(i) as u32;
-
-        *left.get_unchecked_mut(i) -= 1;
+        sum += (i as u32 + 10000) * *left.get_unchecked(i) as u32 * *right.get_unchecked(i) as u32;
+        i += 1;
     }
 
     sum
