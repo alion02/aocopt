@@ -10,8 +10,8 @@ use std::fmt::Display;
 unsafe fn inner1(s: &str) -> impl Display {
     let s = s.as_bytes();
 
-    let mut left = [0u8; 100000];
-    let mut right = [0u8; 100000];
+    let mut left = [0u8; 90000];
+    let mut right = [0u8; 90000];
 
     for i in (0..).step_by(14).take(1000) {
         let a = *s.get_unchecked(i + 0) as u32 * 10000
@@ -19,7 +19,7 @@ unsafe fn inner1(s: &str) -> impl Display {
             + *s.get_unchecked(i + 2) as u32 * 100
             + *s.get_unchecked(i + 3) as u32 * 10
             + *s.get_unchecked(i + 4) as u32 * 1
-            - 533328;
+            - 543328;
 
         *left.get_unchecked_mut(a as usize) += 1;
 
@@ -28,7 +28,7 @@ unsafe fn inner1(s: &str) -> impl Display {
             + *s.get_unchecked(i + 10) as u32 * 100
             + *s.get_unchecked(i + 11) as u32 * 10
             + *s.get_unchecked(i + 12) as u32 * 1
-            - 533328;
+            - 543328;
 
         *right.get_unchecked_mut(b as usize) += 1;
     }
@@ -42,7 +42,7 @@ unsafe fn inner1(s: &str) -> impl Display {
         while left[i] == 0 {
             i += 1;
 
-            if i == 100000 {
+            if i == 90000 {
                 break 'outer;
             }
         }
@@ -50,7 +50,7 @@ unsafe fn inner1(s: &str) -> impl Display {
         while right[j] == 0 {
             j += 1;
 
-            if j == 100000 {
+            if j == 90000 {
                 break 'outer;
             }
         }
@@ -67,8 +67,8 @@ unsafe fn inner1(s: &str) -> impl Display {
 unsafe fn inner2(s: &str) -> impl Display {
     let s = s.as_bytes();
 
-    let mut left = [0u8; 100000];
-    let mut right = [0u8; 100000];
+    let mut left = [0u8; 90000];
+    let mut right = [0u8; 90000];
 
     for i in (0..).step_by(14).take(1000) {
         let a = *s.get_unchecked(i + 0) as u32 * 10000
@@ -76,7 +76,7 @@ unsafe fn inner2(s: &str) -> impl Display {
             + *s.get_unchecked(i + 2) as u32 * 100
             + *s.get_unchecked(i + 3) as u32 * 10
             + *s.get_unchecked(i + 4) as u32 * 1
-            - 533328;
+            - 543328;
 
         *left.get_unchecked_mut(a as usize) += 1;
 
@@ -85,7 +85,7 @@ unsafe fn inner2(s: &str) -> impl Display {
             + *s.get_unchecked(i + 10) as u32 * 100
             + *s.get_unchecked(i + 11) as u32 * 10
             + *s.get_unchecked(i + 12) as u32 * 1
-            - 533328;
+            - 543328;
 
         *right.get_unchecked_mut(b as usize) += 1;
     }
@@ -98,7 +98,7 @@ unsafe fn inner2(s: &str) -> impl Display {
         while left[i] == 0 {
             i += 1;
 
-            if i == 100000 {
+            if i == 90000 {
                 break 'outer;
             }
         }
