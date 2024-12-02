@@ -123,7 +123,7 @@ unsafe fn inner2(s: &str) -> impl Display {
     let mut sum = 0u32;
 
     'outer: loop {
-        while left[i] == 0 {
+        while *left.get_unchecked(i) == 0 {
             i += 1;
 
             if i == 90000 {
@@ -131,9 +131,9 @@ unsafe fn inner2(s: &str) -> impl Display {
             }
         }
 
-        sum += (i as u32 + 10000) * right[i] as u32;
+        sum += (i as u32 + 10000) * *right.get_unchecked(i) as u32;
 
-        left[i] -= 1;
+        *left.get_unchecked_mut(i) -= 1;
     }
 
     sum
