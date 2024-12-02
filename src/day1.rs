@@ -4,13 +4,13 @@
     clippy::identity_op
 )]
 
-use std::fmt::Display;
+use std::{fmt::Display, simd::prelude::*};
 
 #[repr(align(32))]
 #[derive(Clone, Copy)]
-struct Arr([u8; 90000]);
+struct Arr([u8; 90032]);
 
-static mut ARRAYS: [Arr; 128] = [Arr([0; 90000]); 128];
+static mut ARRAYS: [Arr; 128] = [Arr([0; 90032]); 128];
 static mut CLEAN_ARR: usize = 128;
 
 macro_rules! get_arr {
@@ -58,12 +58,28 @@ unsafe fn inner1(s: &str) -> impl Display {
     let mut sum = 0;
 
     for _ in 0..1000 {
-        while *left.get_unchecked(i) == 0 {
-            i += 1;
+        loop {
+            let left_chunk = (left.get_unchecked(i) as *const _ as *const u8x32).read_unaligned();
+            if left_chunk.reduce_or() != 0 {
+                i += left_chunk
+                    .simd_ne(Simd::splat(0))
+                    .to_bitmask()
+                    .trailing_zeros() as usize;
+                break;
+            }
+            i += 32;
         }
 
-        while *right.get_unchecked(j) == 0 {
-            j += 1;
+        loop {
+            let right_chunk = (right.get_unchecked(j) as *const _ as *const u8x32).read_unaligned();
+            if right_chunk.reduce_or() != 0 {
+                j += right_chunk
+                    .simd_ne(Simd::splat(0))
+                    .to_bitmask()
+                    .trailing_zeros() as usize;
+                break;
+            }
+            j += 32;
         }
 
         sum += i.abs_diff(j) as u32;

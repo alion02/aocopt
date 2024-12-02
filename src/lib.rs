@@ -1,4 +1,4 @@
-#![feature(thread_local)]
+#![feature(thread_local, portable_simd)]
 
 #[macro_use]
 extern crate aoc_runner_derive;
