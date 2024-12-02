@@ -15,21 +15,6 @@ use std::{
 #[derive(Clone, Copy)]
 struct Arr([u8; 90032]);
 
-static mut ARRAYS: [Arr; 128] = [Arr([0; 90032]); 128];
-static mut CLEAN_ARR: usize = 128;
-
-macro_rules! get_arr {
-    () => {
-        if CLEAN_ARR > 0 {
-            CLEAN_ARR -= 1;
-            &mut ARRAYS[CLEAN_ARR].0
-        } else {
-            ARRAYS[0].0.fill(0);
-            &mut ARRAYS[0].0
-        }
-    };
-}
-
 #[inline]
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn preprocess(s: &str, left: &mut [u8; 90032], right: &mut [u8; 90032]) {
@@ -164,6 +149,21 @@ unsafe fn preprocess(s: &str, left: &mut [u8; 90032], right: &mut [u8; 90032]) {
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn inner1(s: &str) -> impl Display {
+    static mut ARRAYS: [Arr; 128] = [Arr([0; 90032]); 128];
+    static mut CLEAN_ARR: usize = 128;
+
+    macro_rules! get_arr {
+        () => {
+            if CLEAN_ARR > 0 {
+                CLEAN_ARR -= 1;
+                &mut ARRAYS[CLEAN_ARR].0
+            } else {
+                ARRAYS[0].0.fill(0);
+                &mut ARRAYS[0].0
+            }
+        };
+    }
+
     let left = get_arr!();
     let right = get_arr!();
 
@@ -210,6 +210,21 @@ unsafe fn inner1(s: &str) -> impl Display {
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn inner2(s: &str) -> impl Display {
+    static mut ARRAYS: [Arr; 128] = [Arr([0; 90032]); 128];
+    static mut CLEAN_ARR: usize = 128;
+
+    macro_rules! get_arr {
+        () => {
+            if CLEAN_ARR > 0 {
+                CLEAN_ARR -= 1;
+                &mut ARRAYS[CLEAN_ARR].0
+            } else {
+                ARRAYS[0].0.fill(0);
+                &mut ARRAYS[0].0
+            }
+        };
+    }
+
     let left = get_arr!();
     let right = get_arr!();
 
