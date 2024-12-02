@@ -25,12 +25,9 @@ macro_rules! get_arr {
     };
 }
 
-#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn inner1(s: &str) -> impl Display {
+#[inline(never)]
+unsafe fn preprocess(s: &str, left: &mut [u8; 90032], right: &mut [u8; 90032]) {
     let s = s.as_bytes();
-
-    let left = get_arr!();
-    let right = get_arr!();
 
     for i in (0..).step_by(14).take(1000) {
         let a = *s.get_unchecked(i + 0) as u32 * 10000
@@ -51,6 +48,14 @@ unsafe fn inner1(s: &str) -> impl Display {
 
         *right.get_unchecked_mut(b as usize) += 1;
     }
+}
+
+#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+unsafe fn inner1(s: &str) -> impl Display {
+    let left = get_arr!();
+    let right = get_arr!();
+
+    preprocess(s, left, right);
 
     let mut i = 0;
     let mut j = 0;
@@ -93,30 +98,10 @@ unsafe fn inner1(s: &str) -> impl Display {
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn inner2(s: &str) -> impl Display {
-    let s = s.as_bytes();
-
     let left = get_arr!();
     let right = get_arr!();
 
-    for i in (0..).step_by(14).take(1000) {
-        let a = *s.get_unchecked(i + 0) as u32 * 10000
-            + *s.get_unchecked(i + 1) as u32 * 1000
-            + *s.get_unchecked(i + 2) as u32 * 100
-            + *s.get_unchecked(i + 3) as u32 * 10
-            + *s.get_unchecked(i + 4) as u32 * 1
-            - 543328;
-
-        *left.get_unchecked_mut(a as usize) += 1;
-
-        let b = *s.get_unchecked(i + 8) as u32 * 10000
-            + *s.get_unchecked(i + 9) as u32 * 1000
-            + *s.get_unchecked(i + 10) as u32 * 100
-            + *s.get_unchecked(i + 11) as u32 * 10
-            + *s.get_unchecked(i + 12) as u32 * 1
-            - 543328;
-
-        *right.get_unchecked_mut(b as usize) += 1;
-    }
+    preprocess(s, left, right);
 
     let mut i = 0;
 
