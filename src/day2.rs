@@ -10,38 +10,41 @@ unsafe fn inner1(s: &str) -> u32 {
     let mut sum = 0;
 
     loop {
-        let mut prev = 0;
+        macro_rules! step {
+            ($value:pat) => {
+                let digit1 = *s.get_unchecked(i) as u32;
+                let char2 = *s.get_unchecked(i + 1) as u32;
+
+                let ($value, step) = if char2 < 48 {
+                    (digit1 - 48, 2)
+                } else {
+                    (digit1 * 10 + char2 - 528, 3)
+                };
+
+                i += step;
+            };
+        }
+
+        step!(mut prev);
         let mut sign = 0;
 
-        for num_idx in 0.. {
-            let digit1 = *s.get_unchecked(i) as u32;
-            let char2 = *s.get_unchecked(i + 1) as u32;
+        for num_idx in 1.. {
+            step!(value);
 
-            let (value, step) = if char2 < 48 {
-                (digit1 - 48, 2)
-            } else {
-                (digit1 * 10 + char2 - 528, 3)
-            };
+            let diff = value.wrapping_sub(prev) as i32;
 
-            i += step;
+            if num_idx == 1 {
+                sign = diff;
+            }
 
-            if num_idx > 0 {
-                let diff = value.wrapping_sub(prev) as i32;
+            if diff ^ sign < 0 || value.abs_diff(prev).wrapping_sub(1) > 2 {
+                let chunk = (s.get_unchecked(i - 1) as *const _ as *const u8x32).read_unaligned();
 
-                if num_idx == 1 {
-                    sign = diff;
-                }
+                let newlines = chunk.simd_eq(Simd::splat(b'\n')).to_bitmask() as u32;
 
-                if diff ^ sign < 0 || value.abs_diff(prev).wrapping_sub(1) > 2 {
-                    let chunk =
-                        (s.get_unchecked(i - 1) as *const _ as *const u8x32).read_unaligned();
+                i += newlines.trailing_zeros() as usize;
 
-                    let newlines = chunk.simd_eq(Simd::splat(b'\n')).to_bitmask() as u32;
-
-                    i += newlines.trailing_zeros() as usize;
-
-                    break;
-                }
+                break;
             }
 
             prev = value;
