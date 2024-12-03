@@ -4,12 +4,12 @@ use std::{
         _mm_shuffle_epi8, _pext_u32,
     },
     hint::black_box,
-    intrinsics::unlikely,
 };
 
 use super::*;
 
-static PLACEHOLDER_LUT: [u8x32; 1 << 21] = [Simd::from_array([0; 32]); 1 << 21];
+static LUT: [u8x32; 1 << 21] =
+    unsafe { transmute(*include_bytes!(concat!(env!("OUT_DIR"), "/day2lut.bin"))) };
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 #[no_mangle]
@@ -20,7 +20,7 @@ unsafe fn inner1(s: &str) -> u32 {
 
     let mut sum = 0;
 
-    let lut = black_box(PLACEHOLDER_LUT.as_ptr());
+    let lut = LUT.as_ptr();
 
     for _ in 0..1000 {
         let chunk = (s.get_unchecked(i) as *const _ as *const u8x32).read_unaligned();
@@ -53,7 +53,7 @@ unsafe fn inner1(s: &str) -> u32 {
         let nonzero = diffs.simd_ne(Simd::splat(0));
         let signs = _mm_movemask_epi8(diffs.into()) as u32 & lane_mask;
         let pass = _mm_movemask_epi8((lt & gt & nonzero).to_int().into()) as u32 & lane_mask;
-        i += line_len as usize;
+        i += line_len as usize + 1;
         if (signs == lane_mask || signs == 0) && pass == lane_mask {
             sum += 1;
         }

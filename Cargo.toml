@@ -15,6 +15,9 @@ codegen-units = 1
 panic = "abort"
 lto = true
 
+[profile.dev.build-override]
+opt-level = 3
+
 [[bench]]
 name = "bench"
 harness = false
