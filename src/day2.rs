@@ -18,7 +18,7 @@ unsafe fn inner1(s: &str) -> u32 {
 
     let mut i = 0;
 
-    let mut passed = 1000;
+    let mut passed = 1001;
 
     let lut = LUT.as_ptr();
 
