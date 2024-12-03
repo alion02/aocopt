@@ -1,7 +1,7 @@
 use std::{
     arch::x86_64::{
         _mm256_movemask_epi8, _mm256_shuffle_epi8, _mm_maddubs_epi16, _mm_movemask_epi8,
-        _mm_shuffle_epi8,
+        _mm_shuffle_epi8, _pext_u32,
     },
     hint::black_box,
     intrinsics::unlikely,
@@ -30,8 +30,9 @@ unsafe fn inner1(s: &str) -> u32 {
         let normalized = chunk - Simd::splat(b'0');
         let non_digit_mask = _mm256_movemask_epi8(normalized.into()) as u32;
         let line_mask = newline_mask ^ (newline_mask - 1);
-        let number_count = (non_digit_mask & line_mask).count_ones();
-        let lane_mask = ((1 << (number_count * 2)) - 1) & 0b1010101010101010;
+        let non_digit_line_mask = non_digit_mask & line_mask;
+        let pext_mask = non_digit_line_mask + (non_digit_line_mask >> 1);
+        let lane_mask = _pext_u32(non_digit_line_mask, pext_mask);
         let lut_offset = (non_digit_mask & 0x7FFFFC) << 3;
         let shuf_idx = lut.byte_add(lut_offset as usize).read();
         let shuffled: u8x32 = _mm256_shuffle_epi8(normalized.into(), shuf_idx.into()).into();
