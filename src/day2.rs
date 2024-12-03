@@ -1,3 +1,5 @@
+use std::intrinsics::unlikely;
+
 use super::*;
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
@@ -25,33 +27,56 @@ unsafe fn inner1(s: &str) -> u32 {
             };
         }
 
-        step!(mut prev);
-        let mut sign = 0;
+        step!(mut v0);
+        step!(mut v1);
 
-        for num_idx in 1.. {
-            step!(value);
+        if v1 as i32 - v0 as i32 > 0 {
+            loop {
+                let diff = v1.wrapping_sub(v0).wrapping_sub(1);
 
-            let diff = value.wrapping_sub(prev) as i32;
+                if diff > 2 {
+                    let chunk =
+                        (s.get_unchecked(i - 1) as *const _ as *const u8x32).read_unaligned();
 
-            if num_idx == 1 {
-                sign = diff;
+                    let newlines = chunk.simd_eq(Simd::splat(b'\n')).to_bitmask() as u32;
+
+                    i += newlines.trailing_zeros() as usize;
+
+                    break;
+                }
+
+                if *s.get_unchecked(i - 1) == b'\n' {
+                    sum += 1;
+                    break;
+                }
+
+                step!(next);
+                v0 = v1;
+                v1 = next;
             }
+        } else {
+            loop {
+                let diff = v0.wrapping_sub(v1).wrapping_sub(1);
 
-            if diff ^ sign < 0 || value.abs_diff(prev).wrapping_sub(1) > 2 {
-                let chunk = (s.get_unchecked(i - 1) as *const _ as *const u8x32).read_unaligned();
+                if diff > 2 {
+                    let chunk =
+                        (s.get_unchecked(i - 1) as *const _ as *const u8x32).read_unaligned();
 
-                let newlines = chunk.simd_eq(Simd::splat(b'\n')).to_bitmask() as u32;
+                    let newlines = chunk.simd_eq(Simd::splat(b'\n')).to_bitmask() as u32;
 
-                i += newlines.trailing_zeros() as usize;
+                    i += newlines.trailing_zeros() as usize;
 
-                break;
-            }
+                    break;
+                }
 
-            prev = value;
+                if *s.get_unchecked(i - 1) == b'\n' {
+                    sum += 1;
+                    break;
+                }
 
-            if *s.get_unchecked(i - 1) == b'\n' {
-                sum += 1;
-                break;
+                step!(next);
+                v0 = v1;
+                v1 = next;
             }
         }
 

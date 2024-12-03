@@ -1,5 +1,6 @@
-#![feature(thread_local, portable_simd)]
+#![feature(thread_local, portable_simd, core_intrinsics)]
 #![allow(
+    internal_features,
     clippy::missing_safety_doc,
     clippy::identity_op,
     clippy::zero_prefixed_literal
