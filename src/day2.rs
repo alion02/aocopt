@@ -1,6 +1,15 @@
-use std::intrinsics::unlikely;
+use std::{
+    arch::x86_64::{
+        _mm256_movemask_epi8, _mm256_shuffle_epi8, _mm_maddubs_epi16, _mm_movemask_epi8,
+        _mm_shuffle_epi8,
+    },
+    hint::black_box,
+    intrinsics::unlikely,
+};
 
 use super::*;
+
+static PLACEHOLDER_LUT: [u8x32; 1 << 21] = [Simd::from_array([0; 32]); 1 << 21];
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 #[no_mangle]
@@ -11,77 +20,41 @@ unsafe fn inner1(s: &str) -> u32 {
 
     let mut sum = 0;
 
-    loop {
-        macro_rules! step {
-            ($value:pat) => {
-                let digit1 = *s.get_unchecked(i) as u32;
-                let char2 = *s.get_unchecked(i + 1) as u32;
+    let lut = black_box(PLACEHOLDER_LUT.as_ptr());
 
-                let ($value, step) = if char2 < 48 {
-                    (digit1 - 48, 2)
-                } else {
-                    (digit1 * 10 + char2 - 528, 3)
-                };
-
-                i += step;
-            };
-        }
-
-        step!(mut v0);
-        step!(mut v1);
-
-        if v1 as i32 - v0 as i32 > 0 {
-            loop {
-                let diff = v1.wrapping_sub(v0).wrapping_sub(1);
-
-                if diff > 2 {
-                    let chunk =
-                        (s.get_unchecked(i - 1) as *const _ as *const u8x32).read_unaligned();
-
-                    let newlines = chunk.simd_eq(Simd::splat(b'\n')).to_bitmask() as u32;
-
-                    i += newlines.trailing_zeros() as usize;
-
-                    break;
-                }
-
-                if *s.get_unchecked(i - 1) == b'\n' {
-                    sum += 1;
-                    break;
-                }
-
-                step!(next);
-                v0 = v1;
-                v1 = next;
-            }
-        } else {
-            loop {
-                let diff = v0.wrapping_sub(v1).wrapping_sub(1);
-
-                if diff > 2 {
-                    let chunk =
-                        (s.get_unchecked(i - 1) as *const _ as *const u8x32).read_unaligned();
-
-                    let newlines = chunk.simd_eq(Simd::splat(b'\n')).to_bitmask() as u32;
-
-                    i += newlines.trailing_zeros() as usize;
-
-                    break;
-                }
-
-                if *s.get_unchecked(i - 1) == b'\n' {
-                    sum += 1;
-                    break;
-                }
-
-                step!(next);
-                v0 = v1;
-                v1 = next;
-            }
-        }
-
-        if i == s.len() {
-            break;
+    for _ in 0..1000 {
+        let chunk = (s.get_unchecked(i) as *const _ as *const u8x32).read_unaligned();
+        let is_newline = chunk.simd_eq(Simd::splat(b'\n'));
+        let newline_mask = is_newline.to_bitmask() as u32;
+        let line_len = newline_mask.trailing_zeros();
+        let normalized = chunk - Simd::splat(b'0');
+        let non_digit_mask = _mm256_movemask_epi8(normalized.into()) as u32;
+        let line_mask = newline_mask ^ (newline_mask - 1);
+        let number_count = (non_digit_mask & line_mask).count_ones();
+        let lane_mask = ((1 << (number_count * 2)) - 1) & 0b1010101010101010;
+        let lut_offset = (non_digit_mask & 0x7FFFFC) << 3;
+        let shuf_idx = lut.byte_add(lut_offset as usize).read();
+        let shuffled: u8x32 = _mm256_shuffle_epi8(normalized.into(), shuf_idx.into()).into();
+        let shuffled: u8x16 = simd_swizzle!(shuffled, [
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
+        ]) | simd_swizzle!(shuffled, [
+            16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31
+        ]);
+        let numbers: i16x8 = _mm_maddubs_epi16(
+            shuffled.into(),
+            u8x16::from_array([10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1]).into(),
+        )
+        .into();
+        let shifted_down = simd_swizzle!(numbers, Simd::splat(0), [1, 2, 3, 4, 5, 6, 7, 8]);
+        let diffs = numbers - shifted_down;
+        let lt = diffs.simd_lt(Simd::splat(4));
+        let gt = diffs.simd_gt(Simd::splat(-4));
+        let nonzero = diffs.simd_ne(Simd::splat(0));
+        let signs = _mm_movemask_epi8(diffs.into()) as u32 & lane_mask;
+        let pass = _mm_movemask_epi8((lt & gt & nonzero).to_int().into()) as u32 & lane_mask;
+        i += line_len as usize;
+        if (signs == lane_mask || signs == 0) && pass == lane_mask {
+            sum += 1;
         }
     }
 
