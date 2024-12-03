@@ -29,10 +29,10 @@ unsafe fn inner1(s: &str) -> u32 {
         let line_len = newline_mask.trailing_zeros();
         let normalized = chunk - Simd::splat(b'0');
         let non_digit_mask = _mm256_movemask_epi8(normalized.into()) as u32;
-        let line_mask = newline_mask ^ (newline_mask - 1);
-        let non_digit_line_mask = non_digit_mask & line_mask;
-        let pext_mask = non_digit_line_mask + (non_digit_line_mask >> 1);
-        let lane_mask = _pext_u32(non_digit_line_mask, pext_mask);
+        let line_mask = !newline_mask & (newline_mask - 1);
+        let space_line_mask = non_digit_mask & line_mask;
+        let pext_mask = space_line_mask + (space_line_mask >> 1);
+        let lane_mask = _pext_u32(space_line_mask, pext_mask);
         let lut_offset = (non_digit_mask & 0x7FFFFC) << 3;
         let shuf_idx = lut.byte_add(lut_offset as usize).read();
         let shuffled: u8x32 = _mm256_shuffle_epi8(normalized.into(), shuf_idx.into()).into();
