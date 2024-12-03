@@ -51,10 +51,9 @@ unsafe fn inner1(s: &str) -> u32 {
         let abs_diffs = diffs.abs().cast() - u16x8::splat(1);
         let is_in_range = abs_diffs.simd_lt(Simd::splat(3));
         let signs = _mm_movemask_epi8(diffs.into()) as u32 & lane_mask;
-        let ranges_ok = _mm_movemask_epi8(is_in_range.to_int().into()) as u32 & lane_mask;
-        let signs_ok = if signs == 0 { lane_mask } else { signs };
+        let pass = _mm_movemask_epi8(is_in_range.to_int().into()) as u32 & lane_mask;
         i += line_len as usize + 1;
-        if signs_ok & ranges_ok == lane_mask {
+        if (signs == lane_mask || signs == 0) && pass == lane_mask {
             break;
         }
     }
