@@ -18,11 +18,12 @@ unsafe fn inner1(s: &str) -> u32 {
 
     let mut i = 0;
 
-    let mut failed = 0;
+    let mut passed = 1000;
 
     let lut = LUT.as_ptr();
 
     loop {
+        passed -= 1;
         let chunk = (s.get_unchecked(i) as *const _ as *const u8x32).read_unaligned();
         let is_newline = chunk.simd_eq(Simd::splat(b'\n'));
         let newline_mask = is_newline.to_bitmask() as u32;
@@ -57,10 +58,9 @@ unsafe fn inner1(s: &str) -> u32 {
         if (signs == lane_mask || signs == 0) && pass == lane_mask {
             break;
         }
-        failed += 1;
     }
 
-    1000 - failed
+    passed
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
