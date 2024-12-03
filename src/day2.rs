@@ -1,11 +1,3 @@
-use std::{
-    arch::x86_64::{
-        _mm256_movemask_epi8, _mm256_shuffle_epi8, _mm_maddubs_epi16, _mm_movemask_epi8,
-        _mm_shuffle_epi8, _pext_u32,
-    },
-    hint::black_box,
-};
-
 use super::*;
 
 static LUT: [u8x32; 1 << 21] =
