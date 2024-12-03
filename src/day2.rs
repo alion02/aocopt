@@ -98,20 +98,36 @@ unsafe fn inner2(s: &str) -> u32 {
         .into();
         let shifted_down = simd_swizzle!(numbers, Simd::splat(0), [1, 2, 3, 4, 5, 6, 7, 8]);
         let diffs = numbers - shifted_down;
-        let lt = diffs.simd_lt(Simd::splat(4));
-        let gt = diffs.simd_gt(Simd::splat(-4));
-        let nonzero = diffs.simd_ne(Simd::splat(0));
+        let abs_diffs = diffs.abs().cast() - u16x8::splat(1);
+        let is_in_range = abs_diffs.simd_lt(Simd::splat(3));
         let signs = _mm_movemask_epi8(diffs.into()) as u32 & lane_mask;
-        let range_ok = _mm_movemask_epi8((lt & gt & nonzero).to_int().into()) as u32 & lane_mask;
-        let signs_ok = if signs.count_ones() > 1 {
-            signs
-        } else {
-            signs ^ lane_mask
-        };
+        let range_ok = _mm_movemask_epi8(is_in_range.to_int().into()) as u32 & lane_mask;
+        let flip_sign = signs.count_ones() > 1;
+        let signs_ok = if flip_sign { signs } else { signs ^ lane_mask };
         let passing_pairs = signs_ok & range_ok;
         i += line_len as usize + 1;
         if passing_pairs == lane_mask {
             break;
+        }
+        let failing_pairs = passing_pairs ^ lane_mask;
+        let t = failing_pairs | failing_pairs << 2;
+        if t.count_ones() <= 3 {
+            let shifted_up = simd_swizzle!(numbers, Simd::splat(0), [8, 0, 1, 2, 3, 4, 5, 6]);
+            let diffs = shifted_up - shifted_down;
+            let abs_diffs = diffs.abs().cast() - u16x8::splat(1);
+            let is_in_range = abs_diffs.simd_lt(Simd::splat(3));
+            let signs = _mm_movemask_epi8(diffs.into()) as u32 & lane_mask;
+            let range_ok = _mm_movemask_epi8(is_in_range.to_int().into()) as u32 & lane_mask;
+            let signs_ok = if flip_sign { signs } else { signs ^ lane_mask };
+            let passing_bridges = (signs_ok & range_ok) | (lane_mask << 2 ^ lane_mask);
+            let valid_repairs = if failing_pairs.count_ones() > 1 {
+                failing_pairs & failing_pairs << 2
+            } else {
+                t
+            };
+            if passing_bridges & valid_repairs != 0 {
+                passed += 1;
+            }
         }
     }
 
