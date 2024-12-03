@@ -1,3 +1,4 @@
+use core::str;
 use std::{
     arch::x86_64::{
         _mm256_movemask_epi8, _mm256_shuffle_epi8, _mm_maddubs_epi16, _mm_movemask_epi8,
@@ -15,18 +16,37 @@ static LUT: [u8x32; 1 << 21] =
 unsafe fn inner1(s: &str) -> u32 {
     let s = s.as_bytes();
 
-    let mut i = 0;
-
-    let mut passed = 1001;
-
     let lut = LUT.as_ptr();
 
+    let mut low = 0;
+    let mut high = s.len();
+    let mut prev_i = 0;
     loop {
-        passed -= 1;
+        let middle = (low + high) / 2;
+        let chunk = (s.get_unchecked(middle) as *const _ as *const u8x32).read_unaligned();
+        let is_newline = chunk.simd_eq(Simd::splat(b'\n'));
+        let newline_mask = is_newline.to_bitmask() as u32;
+        let offset = newline_mask.trailing_zeros() + 1;
+
+        let i = middle + offset as usize;
+        if i == prev_i {
+            let mut acc1 = i8x32::splat(0);
+            let mut j = 0;
+            while j < i - 32 {
+                acc1 -= (s.get_unchecked(j) as *const _ as *const u8x32)
+                    .read_unaligned()
+                    .simd_eq(Simd::splat(b'\n'))
+                    .to_int();
+                j += 32;
+            }
+            let hsum: u16x16 = _mm256_maddubs_epi16(acc1.into(), u8x32::splat(1).into()).into();
+            return 1000
+                - hsum.reduce_sum() as u32
+                - s[j..i].iter().filter(|b| **b == b'\n').count() as u32;
+        }
         let chunk = (s.get_unchecked(i) as *const _ as *const u8x32).read_unaligned();
         let is_newline = chunk.simd_eq(Simd::splat(b'\n'));
         let newline_mask = is_newline.to_bitmask() as u32;
-        let line_len = newline_mask.trailing_zeros();
         let normalized = chunk - Simd::splat(b'0');
         let non_digit_mask = _mm256_movemask_epi8(normalized.into()) as u32;
         let line_mask = !newline_mask & (newline_mask - 1);
@@ -52,13 +72,13 @@ unsafe fn inner1(s: &str) -> u32 {
         let is_in_range = abs_diffs.simd_lt(Simd::splat(3));
         let signs = _mm_movemask_epi8(diffs.into()) as u32 & lane_mask;
         let pass = _mm_movemask_epi8(is_in_range.to_int().into()) as u32 & lane_mask;
-        i += line_len as usize + 1;
         if (signs == lane_mask || signs == 0) && pass == lane_mask {
-            break;
+            high = i;
+        } else {
+            low = i;
         }
+        prev_i = i;
     }
-
-    passed
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
