@@ -25,6 +25,7 @@ unsafe fn inner1(s: &str) -> u32 {
                 }
                 return sum[0] as u32;
             }
+            u_mask &= u_mask - 1;
             let instruction = (ptr.add(u_offset as _).sub(1) as *const u8x16).read_unaligned();
             let normalized = instruction - Simd::splat(b'0');
             let is_digit = normalized.simd_lt(Simd::splat(10));
@@ -36,7 +37,6 @@ unsafe fn inner1(s: &str) -> u32 {
             let is_correct = discombobulated.simd_eq(Simd::from_array([
                 0, 0, 0, 0, 0, 0, 0, 0, 61, 69, 60, -8, -4, -7, 0, 0,
             ]));
-            u_mask &= u_mask - 1;
             if _mm_testc_si128(
                 is_correct.to_int().into(),
                 i8x16::from_array([0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0]).into(),
