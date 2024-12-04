@@ -7,7 +7,7 @@ use super::*;
 static LUT: [u8x16; 1 << 7] =
     unsafe { transmute(*include_bytes!(concat!(env!("OUT_DIR"), "/day3lut.bin"))) };
 
-static mut SCRATCH: [u8; 192] = [0; 192];
+static mut SCRATCH: [u8x32; 5] = [u8x32::from_array([0; 32]); 5];
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn inner1(s: &[u8]) -> u32 {
@@ -33,12 +33,11 @@ unsafe fn inner1(s: &[u8]) -> u32 {
                 }
                 finishing = true;
                 let scratch = SCRATCH.as_mut_ptr();
-                (scratch as *mut u8x64)
-                    .write_unaligned((r.end.sub(128) as *const u8x64).read_unaligned());
-                (scratch.add(64) as *mut u8x64)
-                    .write_unaligned((r.end.sub(64) as *const u8x64).read_unaligned());
-                ptr = scratch.add(128).offset(ptr.offset_from(r.end));
-                end = scratch.add(128);
+                (scratch).write((r.end.sub(96) as *const u8x32).read_unaligned());
+                (scratch.add(1)).write((r.end.sub(64) as *const u8x32).read_unaligned());
+                (scratch.add(2)).write((r.end.sub(32) as *const u8x32).read_unaligned());
+                ptr = scratch.add(3).byte_offset(ptr.offset_from(r.end)) as _;
+                end = scratch.add(3) as _;
                 continue 'chunk;
             }
             u_mask &= u_mask - 1;
