@@ -99,22 +99,21 @@ unsafe fn inner2(s: &[u8]) -> u32 {
             if u_offset == 64 {
                 if disable {
                     ptr = ptr.add(d_offset as usize + 1);
-                    loop {
-                        let chunk = (ptr as *const u8x64).read_unaligned();
-                        let is_d = chunk.simd_eq(Simd::splat(b'd'));
-                        let d_mask = is_d.to_bitmask();
-                        let d_offset = d_mask.trailing_zeros();
-                        let enable = d_offset != 64
-                            && (ptr.add(d_offset as _) as *const u32).read_unaligned()
-                                == u32::from_le_bytes([b'd', b'o', b'(', b')']);
-                        if enable {
-                            ptr = ptr.add(d_offset as usize + 1);
-                            break;
-                        } else {
-                            ptr = ptr.add(64);
-                        }
-                        if ptr < end {
-                            continue;
+                    'inner: loop {
+                        while ptr < end {
+                            let chunk = (ptr as *const u8x64).read_unaligned();
+                            let is_d = chunk.simd_eq(Simd::splat(b'd'));
+                            let d_mask = is_d.to_bitmask();
+                            let d_offset = d_mask.trailing_zeros();
+                            let enable = d_offset != 64
+                                && (ptr.add(d_offset as _) as *const u32).read_unaligned()
+                                    == u32::from_le_bytes([b'd', b'o', b'(', b')']);
+                            if enable {
+                                ptr = ptr.add(d_offset as usize + 1);
+                                break 'inner;
+                            } else {
+                                ptr = ptr.add(64);
+                            }
                         }
                         if finishing {
                             break 'chunk;
@@ -126,7 +125,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
                         (scratch.add(2)).write((r.end.sub(32) as *const u8x32).read_unaligned());
                         ptr = scratch.add(3).byte_offset(ptr.offset_from(r.end)) as _;
                         end = scratch.add(3) as _;
-                        continue;
+                        // technically should skip the ptr < end check but no goto :(
                     }
                 } else {
                     ptr = ptr.add(64);
