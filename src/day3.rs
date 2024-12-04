@@ -7,24 +7,24 @@ use super::*;
 static LUT: [u8x16; 1 << 7] =
     unsafe { transmute(*include_bytes!(concat!(env!("OUT_DIR"), "/day3lut.bin"))) };
 
-static mut SCRATCH: [u8; 128] = [0; 128];
+static mut SCRATCH: [u8; 192] = [0; 192];
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn inner1(s: &[u8]) -> u32 {
     let r = s.as_ptr_range();
     let mut ptr = r.start;
-    let mut end = r.end.sub(45);
+    let mut end = r.end.sub(77);
     let lut = &LUT;
     let mut sum = Simd::splat(0);
     let mut finishing = false;
     'chunk: loop {
-        let chunk = (ptr as *const u8x32).read_unaligned();
+        let chunk = (ptr as *const u8x64).read_unaligned();
         let is_u = chunk.simd_eq(Simd::splat(b'u'));
-        let mut u_mask = is_u.to_bitmask() as u32;
+        let mut u_mask = is_u.to_bitmask() as u64;
         loop {
             let u_offset = u_mask.trailing_zeros();
-            if u_offset == 32 {
-                ptr = ptr.add(32);
+            if u_offset == 64 {
+                ptr = ptr.add(64);
                 if ptr < end {
                     continue 'chunk;
                 }
@@ -33,12 +33,12 @@ unsafe fn inner1(s: &[u8]) -> u32 {
                 }
                 finishing = true;
                 let scratch = SCRATCH.as_mut_ptr();
-                (scratch as *mut u8x32)
-                    .write_unaligned((r.end.sub(64) as *const u8x32).read_unaligned());
-                (scratch.add(32) as *mut u8x32)
-                    .write_unaligned((r.end.sub(32) as *const u8x32).read_unaligned());
-                ptr = scratch.add(64).offset(ptr.offset_from(r.end));
-                end = scratch.add(64);
+                (scratch as *mut u8x64)
+                    .write_unaligned((r.end.sub(128) as *const u8x64).read_unaligned());
+                (scratch.add(64) as *mut u8x64)
+                    .write_unaligned((r.end.sub(64) as *const u8x64).read_unaligned());
+                ptr = scratch.add(128).offset(ptr.offset_from(r.end));
+                end = scratch.add(128);
                 continue 'chunk;
             }
             u_mask &= u_mask - 1;
