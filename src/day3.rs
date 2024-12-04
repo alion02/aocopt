@@ -1,4 +1,4 @@
-use std::arch::x86_64::{_mm_hadd_epi16, _mm_shuffle_epi8, _mm_testc_si128};
+use std::arch::x86_64::{_mm_hadd_epi16, _mm_madd_epi16, _mm_shuffle_epi8, _mm_testc_si128};
 
 use super::*;
 
@@ -11,7 +11,7 @@ unsafe fn inner1(s: &str) -> u32 {
     let mut ptr = r.start;
     let end = r.end;
     let lut = &LUT;
-    let mut sum = 0;
+    let mut sum = Simd::splat(0);
     'chunk: loop {
         let chunk = (ptr as *const u8x32).read_unaligned();
         let is_u = chunk.simd_eq(Simd::splat(b'u'));
@@ -23,7 +23,7 @@ unsafe fn inner1(s: &str) -> u32 {
                 if ptr < end {
                     continue 'chunk;
                 }
-                return sum;
+                return sum[0] as u32;
             }
             let instruction = (ptr.add(u_offset as _).sub(1) as *const u8x16).read_unaligned();
             let normalized = instruction - Simd::splat(b'0');
@@ -49,8 +49,8 @@ unsafe fn inner1(s: &str) -> u32 {
                 u8x16::from_array([100, 10, 1, 0, 100, 10, 1, 0, 100, 10, 1, 0, 100, 10, 1, 0])
                     .into(),
             );
-            let three_digit: u16x8 = _mm_hadd_epi16(two_digit, two_digit).into();
-            sum += three_digit[0] as u32 * three_digit[1] as u32;
+            let three_digit: i32x4 = _mm_madd_epi16(two_digit, i8x16::splat(-1).into()).into();
+            sum += three_digit * simd_swizzle!(three_digit, [1, 0, 3, 2]);
         }
     }
 }
