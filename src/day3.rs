@@ -1,4 +1,4 @@
-use std::arch::x86_64::{_mm_hadd_epi16, _mm_shuffle_epi8};
+use std::arch::x86_64::{_mm_hadd_epi16, _mm_shuffle_epi8, _mm_testc_si128};
 
 use super::*;
 
@@ -35,12 +35,13 @@ unsafe fn inner1(s: &str) -> u32 {
                 _mm_shuffle_epi8(normalized.into(), shuffle_idx.into()).into();
             let is_correct = discombobulated.simd_eq(Simd::from_array([
                 0, 0, 0, 0, 0, 0, 0, 0, 61, 69, 60, -8, -4, -7, 0, 0,
-            ])) | Mask::from_array([
-                true, true, true, true, true, true, true, true, //
-                false, false, false, false, false, false, true, true, //
-            ]);
+            ]));
             u_mask &= u_mask - 1;
-            if !is_correct.all() {
+            if _mm_testc_si128(
+                is_correct.to_int().into(),
+                i8x16::from_array([0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0]).into(),
+            ) == 0
+            {
                 continue;
             }
             let two_digit = _mm_maddubs_epi16(
