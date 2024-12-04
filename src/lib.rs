@@ -14,13 +14,15 @@ extern crate aoc_runner;
 pub mod day1;
 pub mod day2;
 pub mod day3;
+pub mod day4;
 
 aoc_lib! { year = 2024 }
 
 use std::{
     arch::x86_64::{
         __m256i, _mm256_madd_epi16, _mm256_maddubs_epi16, _mm256_movemask_epi8,
-        _mm256_shuffle_epi8, _mm_maddubs_epi16, _mm_movemask_epi8, _pext_u32,
+        _mm256_shuffle_epi8, _mm_madd_epi16, _mm_maddubs_epi16, _mm_movemask_epi8,
+        _mm_shuffle_epi8, _mm_testc_si128, _pext_u32,
     },
     fmt::Display,
     mem::{transmute, MaybeUninit},

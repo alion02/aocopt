@@ -1,7 +1,3 @@
-use std::arch::x86_64::{_mm_madd_epi16, _mm_shuffle_epi8, _mm_testc_si128};
-
-use memchr::{arch::all::packedpair::HeuristicFrequencyRank, memmem::*};
-
 use super::*;
 
 static LUT: [u8x16; 1 << 7] =
