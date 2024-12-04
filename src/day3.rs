@@ -1,6 +1,6 @@
 use std::arch::x86_64::{_mm_madd_epi16, _mm_shuffle_epi8, _mm_testc_si128};
 
-use memchr::memmem::*;
+use memchr::{arch::all::packedpair::HeuristicFrequencyRank, memmem::*};
 
 use super::*;
 
@@ -74,12 +74,25 @@ unsafe fn inner1(s: &[u8]) -> u32 {
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn inner2(mut s: &[u8]) -> u32 {
     let mut sum = 0;
-    let disable = FinderBuilder::new()
-        .prefilter(Prefilter::None)
-        .build_forward(b"don't()");
-    let enable = FinderBuilder::new()
-        .prefilter(Prefilter::None)
-        .build_forward(b"do()");
+    let disable = FinderBuilder::new().build_forward_with_ranker(Ranker, b"don't()");
+    let enable = FinderBuilder::new().build_forward_with_ranker(Ranker, b"do()");
+    struct Ranker;
+    impl HeuristicFrequencyRank for Ranker {
+        fn rank(&self, byte: u8) -> u8 {
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 14, 17, 0, 17, 17, 15, 16, 20, 255, 250, 14, 17, 123, 18, 0, 20, 42,
+                69, 65, 63, 62, 64, 61, 69, 63, 66, 16, 14, 19, 0, 16, 14, 12, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 0, 14, 17, 0, 0, 20,
+                0, 16, 9, 78, 16, 0, 95, 0, 0, 0, 117, 117, 18, 56, 0, 0, 32, 16, 41, 100, 0, 95,
+                0, 14, 0, 13, 0, 13, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ][byte as usize]
+        }
+    }
     loop {
         let Some(i) = disable.find(s) else {
             return sum + inner1(s);
