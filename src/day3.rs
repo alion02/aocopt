@@ -1,6 +1,6 @@
 use std::arch::x86_64::{_mm_madd_epi16, _mm_shuffle_epi8, _mm_testc_si128};
 
-use memchr::memmem;
+use memchr::memmem::*;
 
 use super::*;
 
@@ -74,8 +74,12 @@ unsafe fn inner1(s: &[u8]) -> u32 {
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn inner2(mut s: &[u8]) -> u32 {
     let mut sum = 0;
-    let disable = memmem::Finder::new(b"don't()");
-    let enable = memmem::Finder::new(b"do()");
+    let disable = FinderBuilder::new()
+        .prefilter(Prefilter::None)
+        .build_forward(b"don't()");
+    let enable = FinderBuilder::new()
+        .prefilter(Prefilter::None)
+        .build_forward(b"do()");
     loop {
         let Some(i) = disable.find(s) else {
             return sum + inner1(s);
