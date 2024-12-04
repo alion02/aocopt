@@ -1,5 +1,7 @@
 use std::arch::x86_64::{_mm_madd_epi16, _mm_shuffle_epi8, _mm_testc_si128};
 
+use memchr::memmem;
+
 use super::*;
 
 static LUT: [u8x16; 1 << 7] =
@@ -8,8 +10,8 @@ static LUT: [u8x16; 1 << 7] =
 static mut SCRATCH: [u8; 128] = [0; 128];
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn inner1(s: &str) -> u32 {
-    let r = s.as_bytes().as_ptr_range();
+unsafe fn inner1(s: &[u8]) -> u32 {
+    let r = s.as_ptr_range();
     let mut ptr = r.start;
     let mut end = r.end.sub(45);
     let lut = &LUT;
@@ -70,17 +72,17 @@ unsafe fn inner1(s: &str) -> u32 {
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn inner2(mut s: &str) -> u32 {
+unsafe fn inner2(mut s: &[u8]) -> u32 {
     let mut sum = 0;
     loop {
-        let Some(i) = s.find("don't()") else {
+        let Some(i) = memmem::find(s, b"don't()") else {
             return sum + inner1(s);
         };
 
         sum += inner1(&s[..i]);
         s = &s[i + 6..];
 
-        let Some(i) = s.find("do()") else {
+        let Some(i) = memmem::find(s, b"do()") else {
             return sum;
         };
 
@@ -89,11 +91,11 @@ unsafe fn inner2(mut s: &str) -> u32 {
 }
 
 pub fn part1(s: &str) -> impl Display {
-    unsafe { inner1(s) }
+    unsafe { inner1(s.as_bytes()) }
 }
 
 pub fn part2(s: &str) -> impl Display {
-    unsafe { inner2(s) }
+    unsafe { inner2(s.as_bytes()) }
 }
 
 #[cfg(test)]

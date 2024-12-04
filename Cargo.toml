@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 aoc-runner = "0.3.0"
 aoc-runner-derive = "0.3.0"
+memchr = "2.7.4"
 
 [dev-dependencies]
 criterion = { version = "2.7.2", package = "codspeed-criterion-compat" }
