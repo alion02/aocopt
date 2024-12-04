@@ -1,17 +1,20 @@
-use std::arch::x86_64::{_mm_hadd_epi16, _mm_madd_epi16, _mm_shuffle_epi8, _mm_testc_si128};
+use std::arch::x86_64::{_mm_madd_epi16, _mm_shuffle_epi8, _mm_testc_si128};
 
 use super::*;
 
 static LUT: [u8x16; 1 << 7] =
     unsafe { transmute(*include_bytes!(concat!(env!("OUT_DIR"), "/day3lut.bin"))) };
 
+static mut SCRATCH: [u8; 128] = [0; 128];
+
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn inner1(s: &str) -> u32 {
     let r = s.as_bytes().as_ptr_range();
     let mut ptr = r.start;
-    let end = r.end;
+    let mut end = r.end.sub(45);
     let lut = &LUT;
     let mut sum = Simd::splat(0);
+    let mut finishing = false;
     'chunk: loop {
         let chunk = (ptr as *const u8x32).read_unaligned();
         let is_u = chunk.simd_eq(Simd::splat(b'u'));
@@ -23,7 +26,18 @@ unsafe fn inner1(s: &str) -> u32 {
                 if ptr < end {
                     continue 'chunk;
                 }
-                return sum[0] as u32;
+                if finishing {
+                    return sum[0] as u32;
+                }
+                finishing = true;
+                let scratch = SCRATCH.as_mut_ptr();
+                (scratch as *mut u8x32)
+                    .write_unaligned((r.end.sub(64) as *const u8x32).read_unaligned());
+                (scratch.add(32) as *mut u8x32)
+                    .write_unaligned((r.end.sub(32) as *const u8x32).read_unaligned());
+                ptr = scratch.add(64).offset(ptr.offset_from(r.end));
+                end = scratch.add(64);
+                continue 'chunk;
             }
             u_mask &= u_mask - 1;
             let instruction = (ptr.add(u_offset as _).sub(1) as *const u8x16).read_unaligned();
@@ -56,8 +70,22 @@ unsafe fn inner1(s: &str) -> u32 {
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn inner2(s: &str) -> u32 {
-    0
+unsafe fn inner2(mut s: &str) -> u32 {
+    let mut sum = 0;
+    loop {
+        let Some(i) = s.find("don't()") else {
+            return sum + inner1(s);
+        };
+
+        sum += inner1(&s[..i]);
+        s = &s[i + 6..];
+
+        let Some(i) = s.find("do()") else {
+            return sum;
+        };
+
+        s = &s[i + 4..];
+    }
 }
 
 pub fn part1(s: &str) -> impl Display {
