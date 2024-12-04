@@ -71,41 +71,110 @@ unsafe fn inner1(s: &[u8]) -> u32 {
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn inner2(mut s: &[u8]) -> u32 {
-    let mut sum = 0;
-    let disable = FinderBuilder::new().build_forward_with_ranker(Ranker, b"don't()");
-    let enable = FinderBuilder::new().build_forward_with_ranker(Ranker, b"do()");
-    struct Ranker;
-    impl HeuristicFrequencyRank for Ranker {
-        fn rank(&self, byte: u8) -> u8 {
-            [
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 14, 17, 0, 17, 17, 15, 16, 20, 255, 250, 14, 17, 123, 18, 0, 20, 42,
-                69, 65, 63, 62, 64, 61, 69, 63, 66, 16, 14, 19, 0, 16, 14, 12, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 0, 14, 17, 0, 0, 20,
-                0, 16, 9, 78, 16, 0, 95, 0, 0, 0, 117, 117, 18, 56, 0, 0, 32, 16, 41, 100, 0, 95,
-                0, 14, 0, 13, 0, 13, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            ][byte as usize]
+unsafe fn inner2(s: &[u8]) -> u32 {
+    let r = s.as_ptr_range();
+    let mut ptr = r.start;
+    let mut end = r.end.sub(77);
+    let lut = &LUT;
+    let mut sum = Simd::splat(0);
+    let mut finishing = false;
+    'chunk: loop {
+        let chunk = (ptr as *const u8x64).read_unaligned();
+        let is_d = chunk.simd_eq(Simd::splat(b'd'));
+        let is_u = chunk.simd_eq(Simd::splat(b'u'));
+        let d_mask = is_d.to_bitmask();
+        let mut u_mask = is_u.to_bitmask();
+        let d_offset = d_mask.trailing_zeros();
+        let mut disable = false;
+        if d_offset != 64 {
+            let bytes_to_test = (ptr.add(d_offset as _) as *const u64).read_unaligned();
+            disable = bytes_to_test << 8
+                == u64::from_le_bytes([0, b'd', b'o', b'n', b'\'', b't', b'(', b')']);
+            if disable {
+                u_mask &= (1 << d_offset) - 1;
+            }
+        }
+        loop {
+            let u_offset = u_mask.trailing_zeros();
+            if u_offset == 64 {
+                if disable {
+                    ptr = ptr.add(d_offset as usize + 1);
+                    loop {
+                        let chunk = (ptr as *const u8x64).read_unaligned();
+                        let is_d = chunk.simd_eq(Simd::splat(b'd'));
+                        let d_mask = is_d.to_bitmask();
+                        let d_offset = d_mask.trailing_zeros();
+                        let enable = d_offset != 64
+                            && (ptr.add(d_offset as _) as *const u32).read_unaligned()
+                                == u32::from_le_bytes([b'd', b'o', b'(', b')']);
+                        if enable {
+                            ptr = ptr.add(d_offset as usize + 1);
+                            break;
+                        } else {
+                            ptr = ptr.add(64);
+                        }
+                        if ptr < end {
+                            continue;
+                        }
+                        if finishing {
+                            break 'chunk;
+                        }
+                        finishing = true;
+                        let scratch = SCRATCH.as_mut_ptr();
+                        (scratch).write((r.end.sub(96) as *const u8x32).read_unaligned());
+                        (scratch.add(1)).write((r.end.sub(64) as *const u8x32).read_unaligned());
+                        (scratch.add(2)).write((r.end.sub(32) as *const u8x32).read_unaligned());
+                        ptr = scratch.add(3).byte_offset(ptr.offset_from(r.end)) as _;
+                        end = scratch.add(3) as _;
+                        continue;
+                    }
+                } else {
+                    ptr = ptr.add(64);
+                }
+                if ptr < end {
+                    continue 'chunk;
+                }
+                if finishing {
+                    break 'chunk;
+                }
+                finishing = true;
+                let scratch = SCRATCH.as_mut_ptr();
+                (scratch).write((r.end.sub(96) as *const u8x32).read_unaligned());
+                (scratch.add(1)).write((r.end.sub(64) as *const u8x32).read_unaligned());
+                (scratch.add(2)).write((r.end.sub(32) as *const u8x32).read_unaligned());
+                ptr = scratch.add(3).byte_offset(ptr.offset_from(r.end)) as _;
+                end = scratch.add(3) as _;
+                continue 'chunk;
+            }
+            u_mask &= u_mask - 1;
+            let instruction = (ptr.add(u_offset as _).sub(1) as *const u8x16).read_unaligned();
+            let normalized = instruction - Simd::splat(b'0');
+            let is_digit = normalized.simd_lt(Simd::splat(10));
+            let digit_mask = is_digit.to_bitmask() as u32;
+            let lut_idx = (digit_mask & 0x7F0) >> 4;
+            let shuffle_idx = *lut.get_unchecked(lut_idx as usize);
+            let discombobulated: i8x16 =
+                _mm_shuffle_epi8(normalized.into(), shuffle_idx.into()).into();
+            let is_correct = discombobulated.simd_eq(Simd::from_array([
+                0, 0, 0, 0, 0, 0, 0, 0, 61, 69, 60, -8, -4, -7, 0, 0,
+            ]));
+            if _mm_testc_si128(
+                is_correct.to_int().into(),
+                i8x16::from_array([0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0]).into(),
+            ) == 0
+            {
+                continue;
+            }
+            let two_digit = _mm_maddubs_epi16(
+                discombobulated.into(),
+                u8x16::from_array([100, 10, 1, 0, 100, 10, 1, 0, 100, 10, 1, 0, 100, 10, 1, 0])
+                    .into(),
+            );
+            let three_digit: i32x4 = _mm_madd_epi16(two_digit, i8x16::splat(-1).into()).into();
+            sum += three_digit * simd_swizzle!(three_digit, [1, 0, 3, 2]);
         }
     }
-    loop {
-        let Some(i) = disable.find(s) else {
-            return sum + inner1(s);
-        };
-
-        sum += inner1(&s[..i]);
-        s = &s[i + 6..];
-
-        let Some(i) = enable.find(s) else {
-            return sum;
-        };
-
-        s = &s[i + 4..];
-    }
+    sum[0] as u32
 }
 
 pub fn part1(s: &str) -> impl Display {
