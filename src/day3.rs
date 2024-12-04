@@ -20,7 +20,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     'chunk: loop {
         let chunk = (ptr as *const u8x64).read_unaligned();
         let is_u = chunk.simd_eq(Simd::splat(b'u'));
-        let mut u_mask = is_u.to_bitmask() as u64;
+        let mut u_mask = is_u.to_bitmask();
         loop {
             let u_offset = u_mask.trailing_zeros();
             if u_offset == 64 {
