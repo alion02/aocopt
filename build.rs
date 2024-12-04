@@ -43,10 +43,10 @@ fn main() {
 
     File::create(path).unwrap().write_all(&lut).unwrap();
 
-    let mut lut = vec![255; 1 << 20].into_boxed_slice();
+    let mut lut = vec![255; 1 << 11].into_boxed_slice();
 
     for (i, vec) in lut.chunks_exact_mut(16).enumerate() {
-        let mut mask = (i >> 4 & 0x7F) ^ 0xFF;
+        let mut mask = i ^ 0xFF;
         let first_len = mask.trailing_zeros() as usize;
         mask &= mask - 1;
         mask >>= first_len + 1;

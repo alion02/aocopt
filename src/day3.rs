@@ -2,7 +2,7 @@ use std::arch::x86_64::{_mm_hadd_epi16, _mm_shuffle_epi8};
 
 use super::*;
 
-static LUT: [u8x16; 1 << 16] =
+static LUT: [u8x16; 1 << 7] =
     unsafe { transmute(*include_bytes!(concat!(env!("OUT_DIR"), "/day3lut.bin"))) };
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
@@ -29,7 +29,8 @@ unsafe fn inner1(s: &str) -> u32 {
             let normalized = instruction - Simd::splat(b'0');
             let is_digit = normalized.simd_lt(Simd::splat(10));
             let digit_mask = is_digit.to_bitmask() as u32;
-            let shuffle_idx = *lut.get_unchecked(digit_mask as usize);
+            let lut_idx = (digit_mask & 0x7F0) >> 4;
+            let shuffle_idx = *lut.get_unchecked(lut_idx as usize);
             let discombobulated: i8x16 =
                 _mm_shuffle_epi8(normalized.into(), shuffle_idx.into()).into();
             let is_correct = discombobulated.simd_eq(Simd::from_array([
