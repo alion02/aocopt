@@ -74,15 +74,17 @@ unsafe fn inner1(s: &[u8]) -> u32 {
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn inner2(mut s: &[u8]) -> u32 {
     let mut sum = 0;
+    let disable = memmem::Finder::new(b"don't()");
+    let enable = memmem::Finder::new(b"do()");
     loop {
-        let Some(i) = memmem::find(s, b"don't()") else {
+        let Some(i) = disable.find(s) else {
             return sum + inner1(s);
         };
 
         sum += inner1(&s[..i]);
         s = &s[i + 6..];
 
-        let Some(i) = memmem::find(s, b"do()") else {
+        let Some(i) = enable.find(s) else {
             return sum;
         };
 
