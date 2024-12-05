@@ -7,9 +7,22 @@ use super::*;
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn inner1(s: &[u8]) -> u32 {
-    let mut matrix = [u8x16::splat(0); 90];
+    let matrix = [u8x32::splat(0); 45];
+    let mut matrix: [u8x16; 90] = transmute(matrix);
     let r = s.as_ptr_range();
     let mut ptr = r.start;
+    let table = matrix.as_mut_ptr().cast::<u8>();
+    macro_rules! fast_bt {
+        ($bt:literal, $i0:expr, $i1:expr) => {
+            asm!(
+                concat!($bt, " dword ptr[{base} + {i0:r}], {i1:e}"),
+                base = in(reg) table,
+                i0 = in(reg) $i0,
+                i1 = in(reg) $i1,
+                options(nostack),
+            );
+        };
+    }
     loop {
         let chunk = (ptr as *const u8x16).read_unaligned();
         if _mm_testc_si128(
@@ -32,31 +45,10 @@ unsafe fn inner1(s: &[u8]) -> u32 {
             shuffled,
         )
         .into();
-        asm!(
-            "bts dword ptr[{base} + {i0:r}], {i1:e}",
-            "bts dword ptr[{base} + {i2:r}], {i3:e}",
-            base = in(reg) matrix.as_mut_ptr(),
-            i0 = in(reg) indices[0],
-            i1 = in(reg) indices[1],
-            i2 = in(reg) indices[2],
-            i3 = in(reg) indices[3],
-            options(nostack),
-        );
-        // *matrix
-        //     .as_mut_ptr()
-        //     .cast::<u8>()
-        //     .add(indices[0] as usize)
-        //     .add((indices[1] / 32) as usize * 4)
-        //     .cast::<u32>() |= 1u32.wrapping_shl(indices[1]);
-        // *matrix
-        //     .as_mut_ptr()
-        //     .cast::<u8>()
-        //     .add(indices[2] as usize)
-        //     .add((indices[3] / 32) as usize * 4)
-        //     .cast::<u32>() |= 1u32.wrapping_shl(indices[3]);
+        fast_bt!("bts", indices[0], indices[1]);
+        fast_bt!("bts", indices[2], indices[3]);
         ptr = ptr.add(12);
     }
-
     matrix.into_iter().sum::<u8x16>().reduce_sum() as u32
 }
 
