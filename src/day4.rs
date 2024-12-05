@@ -9,59 +9,41 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     loop {
         macro_rules! load {
             ($x:expr, $y:expr) => {
-                (ptr.add($x).add($y * 141) as *const u8x32).read_unaligned()
+                (ptr.add($x).add($y * 141) as *const i8x32).read_unaligned()
             };
         }
-        macro_rules! is {
-            ($v:expr, $c:expr) => {
-                ($v).simd_eq(Simd::splat($c))
+        macro_rules! test_four {
+            ($a:expr, $b:expr, $c:expr, $d:expr) => {
+                let diff0 = $d - $a;
+                let diff1 = $b - $c;
+                let abs0 = diff0.abs();
+                let abs1 = diff1.abs();
+                let eq0 = abs0.simd_eq(Simd::splat(b'X' - b'S').cast());
+                let eq1 = abs1.simd_eq(Simd::splat(b'M' - b'A').cast());
+                let sign = diff0 ^ diff1;
+                let eq = eq0 & eq1;
+                let signs_match = sign.simd_lt(Simd::splat(0));
+                sums -= (signs_match & eq).to_int();
             };
         }
         let v00 = load!(0, 0);
         let v10 = load!(1, 0);
         let v20 = load!(2, 0);
         let v30 = load!(3, 0);
-        let v00x = is!(v00, b'X');
-        let v10m = is!(v10, b'M');
-        let v20a = is!(v20, b'A');
-        let v30s = is!(v30, b'S');
-        sums -= (v00x & v10m & v20a & v30s).to_int();
-        let v00s = is!(v00, b'S');
-        let v10a = is!(v10, b'A');
-        let v20m = is!(v20, b'M');
-        let v30x = is!(v30, b'X');
-        sums -= (v00s & v10a & v20m & v30x).to_int();
+        test_four!(v00, v10, v20, v30);
         let v21 = load!(2, 1);
         let v12 = load!(1, 2);
         let v03 = load!(0, 3);
-        let v21m = is!(v21, b'M');
-        let v12a = is!(v12, b'A');
-        let v03s = is!(v03, b'S');
-        sums -= (v30x & v21m & v12a & v03s).to_int();
-        let v21a = is!(v21, b'A');
-        let v12m = is!(v12, b'M');
-        let v03x = is!(v03, b'X');
-        sums -= (v30s & v21a & v12m & v03x).to_int();
+        test_four!(v30, v21, v12, v03);
         let v01 = load!(0, 1);
         let v02 = load!(0, 2);
-        let v01m = is!(v01, b'M');
-        let v02a = is!(v02, b'A');
-        sums -= (v00x & v01m & v02a & v03s).to_int();
-        let v01a = is!(v01, b'A');
-        let v02m = is!(v02, b'M');
-        sums -= (v00s & v01a & v02m & v03x).to_int();
+        test_four!(v00, v01, v02, v03);
         let v11 = load!(1, 1);
         let v22 = load!(2, 2);
         let v33 = load!(3, 3);
-        let v11m = is!(v11, b'M');
-        let v22a = is!(v22, b'A');
-        let v33s = is!(v33, b'S');
-        sums -= (v00x & v11m & v22a & v33s).to_int();
-        let v11a = is!(v11, b'A');
-        let v22m = is!(v22, b'M');
-        let v33x = is!(v33, b'X');
-        sums -= (v00s & v11a & v22m & v33x).to_int();
+        test_four!(v00, v11, v22, v33);
         ptr = ptr.add(32);
+        // yes we're reading hundreds of bytes past the end of the buffer. sue me
         if ptr >= end {
             break;
         }
