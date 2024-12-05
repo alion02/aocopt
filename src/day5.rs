@@ -5,18 +5,67 @@ use super::*;
 // 5-23 numbers in list
 // all numbers 2 digit
 
+static mut MATRIX: [u8x32; 45] = [u8x32::from_array([0; 32]); 45];
+
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn inner1(s: &[u8]) -> u32 {
-    let matrix = [u8x32::splat(0); 45];
-    let mut matrix: [u8x16; 90] = transmute(matrix);
+    let matrix = &mut MATRIX;
+    {
+        MATRIX[0] = Simd::splat(0);
+        MATRIX[1] = Simd::splat(0);
+        MATRIX[2] = Simd::splat(0);
+        MATRIX[3] = Simd::splat(0);
+        MATRIX[4] = Simd::splat(0);
+        MATRIX[5] = Simd::splat(0);
+        MATRIX[6] = Simd::splat(0);
+        MATRIX[7] = Simd::splat(0);
+        MATRIX[8] = Simd::splat(0);
+        MATRIX[9] = Simd::splat(0);
+        MATRIX[10] = Simd::splat(0);
+        MATRIX[11] = Simd::splat(0);
+        MATRIX[12] = Simd::splat(0);
+        MATRIX[13] = Simd::splat(0);
+        MATRIX[14] = Simd::splat(0);
+        MATRIX[15] = Simd::splat(0);
+        MATRIX[16] = Simd::splat(0);
+        MATRIX[17] = Simd::splat(0);
+        MATRIX[18] = Simd::splat(0);
+        MATRIX[19] = Simd::splat(0);
+        MATRIX[20] = Simd::splat(0);
+        MATRIX[21] = Simd::splat(0);
+        MATRIX[22] = Simd::splat(0);
+        MATRIX[23] = Simd::splat(0);
+        MATRIX[24] = Simd::splat(0);
+        MATRIX[25] = Simd::splat(0);
+        MATRIX[26] = Simd::splat(0);
+        MATRIX[27] = Simd::splat(0);
+        MATRIX[28] = Simd::splat(0);
+        MATRIX[29] = Simd::splat(0);
+        MATRIX[30] = Simd::splat(0);
+        MATRIX[31] = Simd::splat(0);
+        MATRIX[32] = Simd::splat(0);
+        MATRIX[33] = Simd::splat(0);
+        MATRIX[34] = Simd::splat(0);
+        MATRIX[35] = Simd::splat(0);
+        MATRIX[36] = Simd::splat(0);
+        MATRIX[37] = Simd::splat(0);
+        MATRIX[38] = Simd::splat(0);
+        MATRIX[39] = Simd::splat(0);
+        MATRIX[40] = Simd::splat(0);
+        MATRIX[41] = Simd::splat(0);
+        MATRIX[42] = Simd::splat(0);
+        MATRIX[43] = Simd::splat(0);
+        MATRIX[44] = Simd::splat(0);
+    }
+
+    let matrix: &mut [u8x16; 90] = transmute(matrix);
     let r = s.as_ptr_range();
     let mut ptr = r.start;
-    let table = matrix.as_mut_ptr().cast::<u8>();
     macro_rules! fast_bt {
         ($bt:literal, $i0:expr, $i1:expr) => {
             asm!(
                 concat!($bt, " dword ptr[{base} + {i0:r}], {i1:e}"),
-                base = in(reg) table,
+                base = in(reg) matrix,
                 i0 = in(reg) $i0,
                 i1 = in(reg) $i1,
                 options(nostack),
@@ -49,7 +98,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         fast_bt!("bts", indices[2], indices[3]);
         ptr = ptr.add(12);
     }
-    matrix.into_iter().sum::<u8x16>().reduce_sum() as u32
+    matrix.iter().copied().sum::<u8x16>().reduce_sum() as u32
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
