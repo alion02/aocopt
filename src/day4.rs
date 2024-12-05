@@ -64,7 +64,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
 unsafe fn inner2(s: &[u8]) -> u32 {
     let r = s.as_ptr_range();
     let mut ptr = r.start;
-    let end = r.end;
+    let end = r.end.sub(348);
     let mut sums0 = i8x32::splat(0);
     let mut sums1 = i8x32::splat(0);
     loop {
