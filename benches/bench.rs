@@ -9,7 +9,7 @@ pub fn day5(c: &mut Criterion) {
     let s = read_to_string("./inputs/5.txt").unwrap();
     let s = s.as_str();
 
-    // c.bench_function("day5 part1", |b| b.iter(|| part1(black_box(s))));
+    c.bench_function("day5 part1 wip", |b| b.iter(|| part1(black_box(s))));
     // c.bench_function("day5 part2", |b| b.iter(|| part2(black_box(s))));
 
     // assert_eq!(

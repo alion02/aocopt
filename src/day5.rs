@@ -1,8 +1,47 @@
+use std::arch::x86_64::_mm_testz_si128;
+
 use super::*;
+
+// 5-23 numbers in list
+// all numbers 2 digit
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn inner1(s: &[u8]) -> u32 {
-    0
+    let mut matrix = [u8x16::splat(0); 90];
+    let r = s.as_ptr_range();
+    let mut ptr = r.start;
+    loop {
+        let chunk = (ptr as *const u8x16).read_unaligned();
+        if _mm_testc_si128(
+            chunk.into(),
+            u8x16::from_array([16, 0, 0, 16, 0, 0, 16, 0, 0, 16, 0, 0, 0, 0, 0, 0]).into(),
+        ) == 0
+        {
+            break;
+        }
+        let normalized = chunk
+            - Simd::from_array([
+                b'1', b'0', 0, b'1', b'0', 0, b'1', b'0', 0, b'1', b'0', 0, 0, 0, 0, 0,
+            ]);
+        let shuffled = _mm_shuffle_epi8(
+            normalized.into(),
+            i8x16::from_array([0, 1, -1, -1, 3, 4, -1, -1, 6, 7, -1, -1, 9, 10, -1, -1]).into(),
+        );
+        let indices: u32x4 = _mm_maddubs_epi16(
+            u8x16::from_array([160, 16, 0, 0, 10, 1, 0, 0, 160, 16, 0, 0, 10, 1, 0, 0]).into(),
+            shuffled,
+        )
+        .into();
+        *(*(matrix.as_mut_ptr() as *mut [u8; 1440]))
+            .get_unchecked_mut(indices[0] as usize + (indices[1] / 8) as usize) |=
+            1u8.wrapping_shl(indices[1]);
+        *(*(matrix.as_mut_ptr() as *mut [u8; 1440]))
+            .get_unchecked_mut(indices[2] as usize + (indices[3] / 8) as usize) |=
+            1u8.wrapping_shl(indices[3]);
+        ptr = ptr.add(12);
+    }
+
+    matrix.into_iter().sum::<u8x16>().reduce_sum() as u32
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
