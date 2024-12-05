@@ -11,7 +11,6 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     let mut sums1 = i8x32::splat(0);
     let mut sums2 = i8x32::splat(0);
     let mut sums3 = i8x32::splat(0);
-    let mut finishing = false;
     macro_rules! load {
         ($x:expr, $y:expr) => {
             (ptr.add($x).add($y * 141) as *const i8x32).read_unaligned()
@@ -31,7 +30,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
             $sums -= (signs_match & eq).to_int();
         };
     }
-    'outer: loop {
+    loop {
         let v00 = load!(0, 0);
         let v10 = load!(1, 0);
         let v20 = load!(2, 0);
