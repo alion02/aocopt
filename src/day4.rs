@@ -55,11 +55,37 @@ unsafe fn inner1(s: &[u8]) -> u32 {
                 break;
             }
             finishing = true;
-            let scratch = &mut SCRATCH;
-            let remainder = 444;
-            scratch[0..remainder].copy_from_slice(std::slice::from_raw_parts(ptr, remainder));
-            ptr = scratch as _;
-            end = ptr.add(remainder);
+            let scratch = SCRATCH.as_mut_ptr();
+            (scratch.add(0 * 32) as *mut u8x32)
+                .write_unaligned((ptr.offset(-4 + 0 * 32) as *const u8x32).read_unaligned());
+            (scratch.add(1 * 32) as *mut u8x32)
+                .write_unaligned((ptr.offset(-4 + 1 * 32) as *const u8x32).read_unaligned());
+            (scratch.add(2 * 32) as *mut u8x32)
+                .write_unaligned((ptr.offset(-4 + 2 * 32) as *const u8x32).read_unaligned());
+            (scratch.add(3 * 32) as *mut u8x32)
+                .write_unaligned((ptr.offset(-4 + 3 * 32) as *const u8x32).read_unaligned());
+            (scratch.add(4 * 32) as *mut u8x32)
+                .write_unaligned((ptr.offset(-4 + 4 * 32) as *const u8x32).read_unaligned());
+            (scratch.add(5 * 32) as *mut u8x32)
+                .write_unaligned((ptr.offset(-4 + 5 * 32) as *const u8x32).read_unaligned());
+            (scratch.add(6 * 32) as *mut u8x32)
+                .write_unaligned((ptr.offset(-4 + 6 * 32) as *const u8x32).read_unaligned());
+            (scratch.add(7 * 32) as *mut u8x32)
+                .write_unaligned((ptr.offset(-4 + 7 * 32) as *const u8x32).read_unaligned());
+            (scratch.add(8 * 32) as *mut u8x32)
+                .write_unaligned((ptr.offset(-4 + 8 * 32) as *const u8x32).read_unaligned());
+            (scratch.add(9 * 32) as *mut u8x32)
+                .write_unaligned((ptr.offset(-4 + 9 * 32) as *const u8x32).read_unaligned());
+            (scratch.add(10 * 32) as *mut u8x32)
+                .write_unaligned((ptr.offset(-4 + 10 * 32) as *const u8x32).read_unaligned());
+            (scratch.add(11 * 32) as *mut u8x32)
+                .write_unaligned((ptr.offset(-4 + 11 * 32) as *const u8x32).read_unaligned());
+            (scratch.add(12 * 32) as *mut u8x32)
+                .write_unaligned((ptr.offset(-4 + 12 * 32) as *const u8x32).read_unaligned());
+            (scratch.add(13 * 32) as *mut u8x32)
+                .write_unaligned((ptr.offset(-4 + 13 * 32) as *const u8x32).read_unaligned());
+            ptr = scratch.add(4) as _;
+            end = ptr.add(444);
         }
     }
     let sums0: u16x16 = _mm256_maddubs_epi16(sums0.into(), u8x32::splat(1).into()).into();

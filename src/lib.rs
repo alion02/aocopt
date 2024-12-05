@@ -1,5 +1,6 @@
 #![feature(thread_local, portable_simd, core_intrinsics)]
 #![allow(
+    clippy::erasing_op,
     static_mut_refs,
     internal_features,
     clippy::missing_safety_doc,
