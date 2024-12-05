@@ -1,4 +1,4 @@
-use std::arch::x86_64::_mm_testz_si128;
+use std::arch::{asm, x86_64::_mm_testc_si128};
 
 use super::*;
 
@@ -32,12 +32,28 @@ unsafe fn inner1(s: &[u8]) -> u32 {
             shuffled,
         )
         .into();
-        *(*(matrix.as_mut_ptr() as *mut [u8; 1440]))
-            .get_unchecked_mut(indices[0] as usize + (indices[1] / 8) as usize) |=
-            1u8.wrapping_shl(indices[1]);
-        *(*(matrix.as_mut_ptr() as *mut [u8; 1440]))
-            .get_unchecked_mut(indices[2] as usize + (indices[3] / 8) as usize) |=
-            1u8.wrapping_shl(indices[3]);
+        asm!(
+            "bts dword ptr[{base} + {i0:r}], {i1:e}",
+            "bts dword ptr[{base} + {i2:r}], {i3:e}",
+            base = in(reg) matrix.as_mut_ptr(),
+            i0 = in(reg) indices[0],
+            i1 = in(reg) indices[1],
+            i2 = in(reg) indices[2],
+            i3 = in(reg) indices[3],
+            options(nostack),
+        );
+        // *matrix
+        //     .as_mut_ptr()
+        //     .cast::<u8>()
+        //     .add(indices[0] as usize)
+        //     .add((indices[1] / 32) as usize * 4)
+        //     .cast::<u32>() |= 1u32.wrapping_shl(indices[1]);
+        // *matrix
+        //     .as_mut_ptr()
+        //     .cast::<u8>()
+        //     .add(indices[2] as usize)
+        //     .add((indices[3] / 32) as usize * 4)
+        //     .cast::<u32>() |= 1u32.wrapping_shl(indices[3]);
         ptr = ptr.add(12);
     }
 
