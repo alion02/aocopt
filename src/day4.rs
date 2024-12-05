@@ -56,7 +56,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
             }
             finishing = true;
             let scratch = &mut SCRATCH;
-            let remainder = r.end.offset_from(ptr) as usize;
+            let remainder = 444;
             scratch[0..remainder].copy_from_slice(std::slice::from_raw_parts(ptr, remainder));
             ptr = scratch as _;
             end = ptr.add(remainder);
