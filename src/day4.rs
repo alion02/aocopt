@@ -31,7 +31,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
             $sums -= (signs_match & eq).to_int();
         };
     }
-    loop {
+    'outer: loop {
         let v00 = load!(0, 0);
         let v10 = load!(1, 0);
         let v20 = load!(2, 0);
@@ -49,12 +49,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         let v33 = load!(3, 3);
         test_four!(sums3, v00, v11, v22, v33);
         ptr = ptr.add(32);
-        // yes we're reading hundreds of bytes past the end of the buffer. sue me
         if ptr > end {
-            if finishing {
-                break;
-            }
-            finishing = true;
             let scratch = SCRATCH.as_mut_ptr();
             (scratch.add(0 * 32) as *mut u8x32)
                 .write_unaligned((ptr.offset(-4 + 0 * 32) as *const u8x32).read_unaligned());
@@ -86,6 +81,35 @@ unsafe fn inner1(s: &[u8]) -> u32 {
                 .write_unaligned((ptr.offset(-4 + 13 * 32) as *const u8x32).read_unaligned());
             ptr = scratch.add(4) as _;
             end = ptr.add(444);
+            break;
+        }
+    }
+    let v00 = load!(0, 0);
+    let v10 = load!(1, 0);
+    let v20 = load!(2, 0);
+    let v30 = load!(3, 0);
+    test_four!(sums0, v00, v10, v20, v30);
+    let v21 = load!(2, 1);
+    let v12 = load!(1, 2);
+    let v03 = load!(0, 3);
+    test_four!(sums1, v30, v21, v12, v03);
+    let v01 = load!(0, 1);
+    let v02 = load!(0, 2);
+    test_four!(sums2, v00, v01, v02, v03);
+    let v11 = load!(1, 1);
+    let v22 = load!(2, 2);
+    let v33 = load!(3, 3);
+    test_four!(sums3, v00, v11, v22, v33);
+    ptr = ptr.add(32);
+    loop {
+        let v00 = load!(0, 0);
+        let v10 = load!(1, 0);
+        let v20 = load!(2, 0);
+        let v30 = load!(3, 0);
+        test_four!(sums0, v00, v10, v20, v30);
+        ptr = ptr.add(32);
+        if ptr > end {
+            break;
         }
     }
     let sums0: u16x16 = _mm256_maddubs_epi16(sums0.into(), u8x32::splat(1).into()).into();
