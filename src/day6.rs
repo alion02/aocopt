@@ -15,6 +15,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
                 break 'outer;
             }
             if *s.get_unchecked(next) == b'#' {
+                loc = loc.wrapping_add(1);
                 break;
             }
             loc = next;
@@ -27,6 +28,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
                 break 'outer;
             }
             if *s.get_unchecked(next) == b'#' {
+                loc = loc.wrapping_add(131);
                 break;
             }
             loc = next;
@@ -39,6 +41,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
                 break 'outer;
             }
             if *s.get_unchecked(next) == b'#' {
+                loc = loc.wrapping_sub(1);
                 break;
             }
             loc = next;
@@ -51,6 +54,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
                 break 'outer;
             }
             if *s.get_unchecked(next) == b'#' {
+                loc = loc.wrapping_sub(131);
                 break;
             }
             loc = next;
