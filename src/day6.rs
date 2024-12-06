@@ -8,8 +8,8 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     asm!(
         "jmp 21f",
     "20:",
+    ".align 32",
         "add {loc}, 64",
-        ".align 32",
     "21:",
         "vmovdqu {c1}, ymmword ptr[{loc}]",
         "vptest {c1}, {mask}",
