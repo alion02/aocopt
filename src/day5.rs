@@ -109,23 +109,69 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         zero = in(ymm_reg) u8x32::splat(0),
     );
 
+    let mut sum = 0;
     let mut i = 0;
     let table: &mut [u8; 1600] = transmute(matrix);
+
+    macro_rules! parse {
+        ($off:expr$(, $on_newline:expr)?) => {{
+            let v1 = *s.get_unchecked(i + $off) as u32;
+            if v1 == b'\n' as u32 {
+                $($on_newline)?
+            }
+            let v2 = *s.get_unchecked(i + $off + 1) as u32;
+            v1 * 10 + v2 - 528
+        }};
+    }
+
     loop {
-        let x1 = *s.get_unchecked(i + 0) as u32;
-        if x1 == b'\n' as u32 {
-            break;
-        }
-        let x2 = *s.get_unchecked(i + 1) as u32;
-        let y1 = *s.get_unchecked(i + 3) as u32;
-        let y2 = *s.get_unchecked(i + 4) as u32;
-        let x = x1 * 10 + x2 - 528;
-        let y = y1 * 10 + y2 - 528;
-        *table.get_unchecked_mut((x + y / 8) as usize) |= 1u8.wrapping_shl(y);
+        let x = parse!(0, break);
+        let y = parse!(3);
+        *table.get_unchecked_mut((x * 16 + y / 8) as usize) |= 1u8.wrapping_shl(y);
         i += 6;
     }
 
-    0
+    i += 1;
+
+    'outer: loop {
+        let [a, b, c, d, e] = [parse!(0), parse!(3), parse!(6), parse!(9), parse!(12)];
+        let mut j = i + 6;
+        i += 15;
+        let mut wrong_order =
+            *table.get_unchecked((b * 16 + a / 8) as usize) & 1u8.wrapping_shl(a) != 0;
+        wrong_order |= *table.get_unchecked((c * 16 + b / 8) as usize) & 1u8.wrapping_shl(b) != 0;
+        wrong_order |= *table.get_unchecked((d * 16 + c / 8) as usize) & 1u8.wrapping_shl(c) != 0;
+        wrong_order |= *table.get_unchecked((e * 16 + d / 8) as usize) & 1u8.wrapping_shl(d) != 0;
+
+        let mut p = e;
+        loop {
+            if *s.get_unchecked(i - 1) == b'\n' {
+                if i == s.len() {
+                    break 'outer;
+                }
+                break;
+            }
+            let n1 = parse!(0);
+            let n2 = parse!(3);
+            i += 6;
+            j += 3;
+            wrong_order |=
+                *table.get_unchecked((n1 * 16 + p / 8) as usize) & 1u8.wrapping_shl(p) != 0;
+            wrong_order |=
+                *table.get_unchecked((n2 * 16 + n1 / 8) as usize) & 1u8.wrapping_shl(n1) != 0;
+            p = n2;
+        }
+
+        if !wrong_order {
+            sum += {
+                let v1 = *s.get_unchecked(j) as u32;
+                let v2 = *s.get_unchecked(j + 1) as u32;
+                v1 * 10 + v2 - 528
+            };
+        }
+    }
+
+    sum
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
