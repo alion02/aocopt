@@ -3,7 +3,31 @@ use super::*;
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 #[allow(unreachable_code)]
 unsafe fn inner1(s: &[u8]) -> u32 {
-    let mut loc = s.iter().position(|b| *b == b'^').unwrap_unchecked();
+    let r = s.as_ptr_range();
+    let mut loc = r.start;
+    asm!(
+        "jmp 21f",
+    "20:",
+        "add {loc}, 64",
+    "21:",
+        "vmovdqu {c1}, ymmword ptr[{loc}]",
+        "vptest {c1}, {mask}",
+        "jnz 22f",
+        "vmovdqu {c1}, ymmword ptr[{loc} + 32]",
+        "vptest {c1}, {mask}",
+        "jz 20b",
+        "add {loc}, 32",
+    "22:",
+        "vpsllw {c1}, {c1}, 1",
+        "vpmovmskb {r1:e}, {c1}",
+        "tzcnt {r1:e}, {r1:e}",
+        "add {loc}, {r1}",
+        loc = inout(reg) loc,
+        mask = in(ymm_reg) u8x32::splat(0x40),
+        c1 = out(ymm_reg) _,
+        r1 = out(reg) _,
+    );
+    let mut loc = loc.offset_from(r.start) as usize;
     let mut new = [true; 131 * 130];
     let mut total = 0;
     'outer: loop {
