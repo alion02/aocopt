@@ -3,7 +3,60 @@ use super::*;
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 #[allow(unreachable_code)]
 unsafe fn inner1(s: &[u8]) -> u32 {
-    0
+    let mut loc = s.iter().position(|b| *b == b'^').unwrap_unchecked();
+    let mut new = [true; 131 * 130];
+    let mut total = 0;
+    'outer: loop {
+        loop {
+            total += *new.get_unchecked(loc) as u32;
+            *new.get_unchecked_mut(loc) = false;
+            let next = loc.wrapping_sub(131);
+            if next >= s.len() {
+                break 'outer;
+            }
+            if *s.get_unchecked(next) == b'#' {
+                break;
+            }
+            loc = next;
+        }
+        loop {
+            total += *new.get_unchecked(loc) as u32;
+            *new.get_unchecked_mut(loc) = false;
+            let next = loc.wrapping_add(1);
+            if *s.get_unchecked(next) == b'\n' {
+                break 'outer;
+            }
+            if *s.get_unchecked(next) == b'#' {
+                break;
+            }
+            loc = next;
+        }
+        loop {
+            total += *new.get_unchecked(loc) as u32;
+            *new.get_unchecked_mut(loc) = false;
+            let next = loc.wrapping_add(131);
+            if next >= s.len() {
+                break 'outer;
+            }
+            if *s.get_unchecked(next) == b'#' {
+                break;
+            }
+            loc = next;
+        }
+        loop {
+            total += *new.get_unchecked(loc) as u32;
+            *new.get_unchecked_mut(loc) = false;
+            let next = loc.wrapping_sub(1);
+            if *s.get_unchecked(next) == b'\n' {
+                break 'outer;
+            }
+            if *s.get_unchecked(next) == b'#' {
+                break;
+            }
+            loc = next;
+        }
+    }
+    total
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
