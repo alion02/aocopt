@@ -1,5 +1,7 @@
 use super::*;
 
+static mut SCRATCH: [u8x32; 67] = [u8x32::from_array([0; 32]); 67];
+
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 #[allow(unreachable_code)]
 unsafe fn inner1(s: &[u8]) -> u32 {
@@ -27,13 +29,22 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         c1 = out(ymm_reg) _,
         r1 = out(reg) _,
     );
+    let visited = &mut SCRATCH;
+    visited.fill(Simd::splat(0));
     let mut loc = loc.offset_from(r.start) as usize;
-    let mut new = [true; 131 * 130];
     let mut total = 0;
+    macro_rules! visit {
+        () => {
+            let bit = 1u32.wrapping_shl(loc as u32);
+            let cell = (visited as *mut _ as *mut u32).add(loc / 32);
+            let value = cell.read();
+            total += (value & bit == 0) as u32;
+            cell.write(value | bit);
+        };
+    }
     'outer: loop {
         loop {
-            total += *new.get_unchecked(loc) as u32;
-            *new.get_unchecked_mut(loc) = false;
+            visit!();
             let next = loc.wrapping_sub(131);
             if next >= s.len() {
                 break 'outer;
@@ -45,8 +56,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
             loc = next;
         }
         loop {
-            total += *new.get_unchecked(loc) as u32;
-            *new.get_unchecked_mut(loc) = false;
+            visit!();
             let next = loc.wrapping_add(1);
             if *s.get_unchecked(next) == b'\n' {
                 break 'outer;
@@ -58,8 +68,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
             loc = next;
         }
         loop {
-            total += *new.get_unchecked(loc) as u32;
-            *new.get_unchecked_mut(loc) = false;
+            visit!();
             let next = loc.wrapping_add(131);
             if next >= s.len() {
                 break 'outer;
@@ -71,8 +80,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
             loc = next;
         }
         loop {
-            total += *new.get_unchecked(loc) as u32;
-            *new.get_unchecked_mut(loc) = false;
+            visit!();
             let next = loc.wrapping_sub(1);
             if *s.get_unchecked(next) == b'\n' {
                 break 'outer;
