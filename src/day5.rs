@@ -105,87 +105,25 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         "vmovdqa ymmword ptr[{table} + 1504], {zero}",
         "vmovdqa ymmword ptr[{table} + 1536], {zero}",
         "vmovdqa ymmword ptr[{table} + 1568], {zero}",
-        "vmovdqu {chunk:x}, xmmword ptr[{ptr}]",
-        "vpsubb {chunk:x}, {chunk:x}, {normalize:x}",
-        "vpshufb {chunk:x}, {chunk:x}, {shuffle1}",
-        "vpmaddubsw {chunk:x}, {mults1}, {chunk:x}",
-        "vmovd {t1:e}, {chunk:x}",
-        "vpextrd {t2:e}, {chunk:x}, 1",
-        "bts dword ptr[{table} + {t1}], {t2:e}",
-        "vpextrd {t1:e}, {chunk:x}, 2",
-        "vpextrd {t2:e}, {chunk:x}, 3",
-        "bts dword ptr[{table} + {t1}], {t2:e}",
-        "vmovdqu {chunk}, ymmword ptr[{ptr} + 11]",
-    "20:",
-        "vpsubb {chunk}, {chunk}, {normalize:y}",
-        "vpshufb {chunk}, {chunk}, {shuffle2}",
-        "vpmaddubsw {chunk}, {mults2}, {chunk}",
-        "vmovd {t1:e}, {chunk:x}",
-        "vpextrw {t2:e}, {chunk:x}, 2",
-        "bts dword ptr[{table} + {t1}], {t2:e}",
-        "vpextrw {t1:e}, {chunk:x}, 3",
-        "vpextrw {t2:e}, {chunk:x}, 4",
-        "bts dword ptr[{table} + {t1}], {t2:e}",
-        "vpextrw {t1:e}, {chunk:x}, 5",
-        "vextracti128 {upperchunk:x}, {chunk}, 1",
-        "vmovd {t2:e}, {upperchunk:x}",
-        "bts dword ptr[{table} + {t1}], {t2:e}",
-        "vpextrw {t1:e}, {upperchunk:x}, 2",
-        "vpextrw {t2:e}, {upperchunk:x}, 3",
-        "bts dword ptr[{table} + {t1}], {t2:e}",
-        "vpextrw {t1:e}, {upperchunk:x}, 4",
-        "vpextrw {t2:e}, {upperchunk:x}, 5",
-        "bts dword ptr[{table} + {t1}], {t2:e}",
-        "add {ptr}, 30",
-        "vmovdqu {chunk}, ymmword ptr[{ptr} + 11]",
-        "vptest {chunk}, {newline_mask}",
-        "jb 20b",
-        "vpcmpgtb {chunk}, {newline_mask}, {chunk}",
-        "vpmovmskb {t1}, {chunk}",
-        "tzcnt {t1:e}, {t1:e}",
-        "vmovdqu {chunk}, ymmword ptr[{ptr} + {t1} - 20]",
-        "vpsubb {chunk}, {chunk}, {normalize:y}",
-        "vpshufb {chunk}, {chunk}, {shuffle2}",
-        "vpmaddubsw {chunk}, {mults2}, {chunk}",
-        "vmovd {t1:e}, {chunk:x}",
-        "vpextrw {t2:e}, {chunk:x}, 2",
-        "bts dword ptr[{table} + {t1}], {t2:e}",
-        "vpextrw {t1:e}, {chunk:x}, 3",
-        "vpextrw {t2:e}, {chunk:x}, 4",
-        "bts dword ptr[{table} + {t1}], {t2:e}",
-        "vpextrw {t1:e}, {chunk:x}, 5",
-        "vextracti128 {upperchunk:x}, {chunk}, 1",
-        "vmovd {t2:e}, {upperchunk:x}",
-        "bts dword ptr[{table} + {t1}], {t2:e}",
-        "vpextrw {t1:e}, {upperchunk:x}, 2",
-        "vpextrw {t2:e}, {upperchunk:x}, 3",
-        "bts dword ptr[{table} + {t1}], {t2:e}",
-        "vpextrw {t1:e}, {upperchunk:x}, 4",
-        "vpextrw {t2:e}, {upperchunk:x}, 5",
-        "bts dword ptr[{table} + {t1}], {t2:e}",
         table = in(reg) matrix,
-        ptr = inout(reg) s.as_ptr() => _,
         zero = in(ymm_reg) u8x32::splat(0),
-        normalize = in(ymm_reg) u8x32::splat(b'0'),
-        shuffle1 = in(xmm_reg) i8x16::from_array([0, 1, -1, -1, 3, 4, -1, -1, 6, 7, -1, -1, 9, 10, -1, -1]),
-        mults1 = in(xmm_reg) u8x16::from_array([160, 16, 0, 0, 10, 1, 0, 0, 160, 16, 0, 0, 10, 1, 0, 0]),
-        shuffle2 = in(ymm_reg) i8x32::from_array([
-            1, 2, -1, -1, 4, 5, 7, 8, 10, 11, -1, -1, -1, -1, -1, -1,
-            0, 1, -1, -1, 3, 4, 6, 7, 9, 10, -1, -1, -1, -1, -1, -1,
-        ]),
-        mults2 = in(ymm_reg) u8x32::from_array([
-            160, 16, 0, 0, 10, 1, 160, 16, 10, 1, 160, 16, 0, 0, 0, 0,
-            10, 1, 0, 0, 160, 16, 10, 1, 160, 16, 10, 1, 0, 0, 0, 0,
-        ]),
-        newline_mask = in(ymm_reg) u8x32::from_array([
-            0, 0, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 0, 16, 0, 0,
-            0, 0, 0, 16, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 0, 16,
-        ]),
-        t1 = out(reg) _,
-        t2 = out(reg) _,
-        chunk = out(ymm_reg) _,
-        upperchunk = out(ymm_reg) _,
     );
+
+    let mut i = 0;
+    let table: &mut [u8; 1600] = transmute(matrix);
+    loop {
+        let x1 = *s.get_unchecked(i + 0) as u32;
+        if x1 == b'\n' as u32 {
+            break;
+        }
+        let x2 = *s.get_unchecked(i + 1) as u32;
+        let y1 = *s.get_unchecked(i + 3) as u32;
+        let y2 = *s.get_unchecked(i + 4) as u32;
+        let x = x1 * 10 + x2 - 528;
+        let y = y1 * 10 + y2 - 528;
+        *table.get_unchecked_mut((x + y / 8) as usize) |= 1u8.wrapping_shl(y);
+        i += 6;
+    }
 
     0
 }
