@@ -24,6 +24,7 @@ jobs:
           bins: cargo-codspeed
 
       - name: Build the benchmark target(s)
+        env: RUSTFLAGS: -Ctarget-cpu=native
         run: cargo codspeed build
 
       - name: Run the benchmarks
