@@ -1,5 +1,3 @@
-use std::arch::{asm, x86_64::_mm_testc_si128};
-
 use super::*;
 
 // 5-23 numbers in list
