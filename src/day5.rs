@@ -5,7 +5,7 @@ use super::*;
 // 5-23 numbers in list
 // all numbers 2 digit
 
-static mut MATRIX: [u8x32; 45] = [u8x32::from_array([0; 32]); 45];
+static mut MATRIX: [u8x32; 50] = [u8x32::from_array([0; 32]); 50];
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 #[allow(unreachable_code)]
@@ -60,11 +60,6 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     // }
 
     asm!(
-        "vmovdqa ymmword ptr[{table}], {zero}",
-        "vmovdqa ymmword ptr[{table} + 32], {zero}",
-        "vmovdqa ymmword ptr[{table} + 64], {zero}",
-        "vmovdqa ymmword ptr[{table} + 96], {zero}",
-        "vmovdqa ymmword ptr[{table} + 128], {zero}",
         "vmovdqa ymmword ptr[{table} + 160], {zero}",
         "vmovdqa ymmword ptr[{table} + 192], {zero}",
         "vmovdqa ymmword ptr[{table} + 224], {zero}",
@@ -105,8 +100,13 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         "vmovdqa ymmword ptr[{table} + 1344], {zero}",
         "vmovdqa ymmword ptr[{table} + 1376], {zero}",
         "vmovdqa ymmword ptr[{table} + 1408], {zero}",
+        "vmovdqa ymmword ptr[{table} + 1440], {zero}",
+        "vmovdqa ymmword ptr[{table} + 1472], {zero}",
+        "vmovdqa ymmword ptr[{table} + 1504], {zero}",
+        "vmovdqa ymmword ptr[{table} + 1536], {zero}",
+        "vmovdqa ymmword ptr[{table} + 1568], {zero}",
         "vmovdqu {chunk:x}, xmmword ptr[{ptr}]",
-        "vpsubb {chunk:x}, {chunk:x}, {normalize1:x}",
+        "vpsubb {chunk:x}, {chunk:x}, {normalize:x}",
         "vpshufb {chunk:x}, {chunk:x}, {shuffle1}",
         "vpmaddubsw {chunk:x}, {mults1}, {chunk:x}",
         "vmovd {t1:e}, {chunk:x}",
@@ -117,7 +117,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         "bts dword ptr[{table} + {t1}], {t2:e}",
         "vmovdqu {chunk}, ymmword ptr[{ptr} + 11]",
     "20:",
-        "vpsubb {chunk}, {chunk}, {normalize2:y}",
+        "vpsubb {chunk}, {chunk}, {normalize:y}",
         "vpshufb {chunk}, {chunk}, {shuffle2}",
         "vpmaddubsw {chunk}, {mults2}, {chunk}",
         "vmovd {t1:e}, {chunk:x}",
@@ -144,7 +144,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         "vpmovmskb {t1}, {chunk}",
         "tzcnt {t1:e}, {t1:e}",
         "vmovdqu {chunk}, ymmword ptr[{ptr} + {t1} - 20]",
-        "vpsubb {chunk}, {chunk}, {normalize2:y}",
+        "vpsubb {chunk}, {chunk}, {normalize:y}",
         "vpshufb {chunk}, {chunk}, {shuffle2}",
         "vpmaddubsw {chunk}, {mults2}, {chunk}",
         "vmovd {t1:e}, {chunk:x}",
@@ -166,13 +166,9 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         table = in(reg) matrix,
         ptr = inout(reg) s.as_ptr() => _,
         zero = in(ymm_reg) u8x32::splat(0),
-        normalize1 = in(xmm_reg) u8x16::from_array([b'1', b'0', 0, b'1', b'0', 0, b'1', b'0', 0, b'1', b'0', 0, 0, 0, 0, 0]),
+        normalize = in(ymm_reg) u8x32::splat(b'0'),
         shuffle1 = in(xmm_reg) i8x16::from_array([0, 1, -1, -1, 3, 4, -1, -1, 6, 7, -1, -1, 9, 10, -1, -1]),
         mults1 = in(xmm_reg) u8x16::from_array([160, 16, 0, 0, 10, 1, 0, 0, 160, 16, 0, 0, 10, 1, 0, 0]),
-        normalize2 = in(ymm_reg) u8x32::from_array([
-            0, b'1', b'0', 0, b'1', b'0', 0, b'1', b'0', 0, b'1', b'0', 0, b'1', b'0', 0,
-            b'1', b'0', 0, b'1', b'0', 0, b'1', b'0', 0, b'1', b'0', 0, b'1', b'0', 0, 0,
-        ]),
         shuffle2 = in(ymm_reg) i8x32::from_array([
             1, 2, -1, -1, 4, 5, 7, 8, 10, 11, -1, -1, -1, -1, -1, -1,
             0, 1, -1, -1, 3, 4, 6, 7, 9, 10, -1, -1, -1, -1, -1, -1,
