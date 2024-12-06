@@ -13,6 +13,8 @@ jobs:
   benchmarks:
     name: Run benchmarks
     runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: '-Ctarget-cpu=native'
     steps:
       - uses: actions/checkout@v4
 
@@ -25,7 +27,6 @@ jobs:
 
       - name: Build the benchmark target(s)
         run: cargo codspeed build
-        env: RUSTFLAGS: '-Ctarget-cpu=native'
 
       - name: Run the benchmarks
         uses: CodSpeedHQ/action@v3
