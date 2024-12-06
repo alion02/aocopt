@@ -3,7 +3,6 @@ use super::*;
 static mut SCRATCH: [u8x32; 67] = [u8x32::from_array([0; 32]); 67];
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-#[allow(unreachable_code)]
 unsafe fn inner1(s: &[u8]) -> u32 {
     let r = s.as_ptr_range();
     let mut loc = r.start;
