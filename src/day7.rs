@@ -1,3 +1,5 @@
+use std::num::NonZeroU64;
+
 use super::*;
 
 // list len 3-12
@@ -14,9 +16,10 @@ unsafe fn process<const P2: bool>(s: &[u8]) -> u64 {
             return target == curr;
         }
         let next = list.sub(1);
-        target % curr == 0 && f::<P2>(target / curr, next, list_end)
+        let nzcurr = NonZeroU64::new_unchecked(curr);
+        target % nzcurr == 0 && f::<P2>(target / nzcurr, next, list_end)
             || P2 && {
-                let divisor = 10u32.pow(curr.ilog10() + 1) as u64;
+                let divisor = NonZeroU64::new_unchecked(10u32.pow(nzcurr.ilog10() + 1) as u64);
                 target % divisor == curr && f::<P2>(target / divisor, next, list_end)
             }
             || target > curr && f::<P2>(target - curr, next, list_end)
