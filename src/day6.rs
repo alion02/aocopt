@@ -284,10 +284,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         let obstacle_mask = tables.obstacles[0].get_unchecked(x)
             & (*masks.get_unchecked(192 - y) as u128
                 | (*masks.get_unchecked(128 - y) as u128) << 64);
-        if obstacle_mask == 0 {
-            break;
-        }
-        let c = 128 - obstacle_mask.trailing_zeros() as usize;
+        let c = 128usize.wrapping_sub(obstacle_mask.trailing_zeros() as usize);
         while y != c {
             *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) = true;
             y -= 1;
@@ -297,12 +294,12 @@ unsafe fn inner2(s: &[u8]) -> u32 {
                 toggle_wall!(x, y);
             }
         }
-
-        let obstacle_mask = tables.obstacles[1].get_unchecked(y)
-            & (*masks.get_unchecked(x + 63) as u128 | (*masks.get_unchecked(x - 1) as u128) << 64);
         if obstacle_mask == 0 {
             break;
         }
+
+        let obstacle_mask = tables.obstacles[1].get_unchecked(y)
+            & (*masks.get_unchecked(x + 63) as u128 | (*masks.get_unchecked(x - 1) as u128) << 64);
         let c = obstacle_mask.trailing_zeros() as usize + 1;
         while x != c {
             *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) = true;
@@ -313,12 +310,12 @@ unsafe fn inner2(s: &[u8]) -> u32 {
                 toggle_wall!(x, y);
             }
         }
-
-        let obstacle_mask = tables.obstacles[2].get_unchecked(x)
-            & (*masks.get_unchecked(y + 63) as u128 | (*masks.get_unchecked(y - 1) as u128) << 64);
         if obstacle_mask == 0 {
             break;
         }
+
+        let obstacle_mask = tables.obstacles[2].get_unchecked(x)
+            & (*masks.get_unchecked(y + 63) as u128 | (*masks.get_unchecked(y - 1) as u128) << 64);
         let c = obstacle_mask.trailing_zeros() as usize + 1;
         while y != c {
             *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) = true;
@@ -329,14 +326,14 @@ unsafe fn inner2(s: &[u8]) -> u32 {
                 toggle_wall!(x, y);
             }
         }
+        if obstacle_mask == 0 {
+            break;
+        }
 
         let obstacle_mask = tables.obstacles[3].get_unchecked(y)
             & (*masks.get_unchecked(192 - x) as u128
                 | (*masks.get_unchecked(128 - x) as u128) << 64);
-        if obstacle_mask == 0 {
-            break;
-        }
-        let c = 128 - obstacle_mask.trailing_zeros() as usize;
+        let c = 128usize.wrapping_sub(obstacle_mask.trailing_zeros() as usize);
         while x != c {
             *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) = true;
             x -= 1;
@@ -345,6 +342,9 @@ unsafe fn inner2(s: &[u8]) -> u32 {
                 total += go_up(&mut tables, masks, x + 1, y) as u32;
                 toggle_wall!(x, y);
             }
+        }
+        if obstacle_mask == 0 {
+            break;
         }
     }
 
