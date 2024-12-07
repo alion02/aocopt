@@ -256,16 +256,16 @@ unsafe fn inner2(s: &[u8]) -> u32 {
 
     macro_rules! toggle_wall {
         ($x:expr, $y:expr) => {
-            if $y < 128 {
+            if $y <= 127 {
                 *tables.obstacles[0].get_unchecked_mut($x) ^= 1 << 127 - $y;
             }
-            if $x > 1 {
+            if $x >= 2 {
                 *tables.obstacles[1].get_unchecked_mut($y) ^= 1 << $x - 2;
             }
-            if $y > 1 {
+            if $y >= 2 {
                 *tables.obstacles[2].get_unchecked_mut($x) ^= 1 << $y - 2;
             }
-            if $x < 128 {
+            if $x <= 127 {
                 *tables.obstacles[3].get_unchecked_mut($y) ^= 1 << 127 - $x;
             }
         };
