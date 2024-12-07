@@ -135,57 +135,46 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         options(nostack, readonly),
     );
 
-    let mut up_lo: [u64; 130] = std::array::from_fn(|i| {
+    let up_lo: [u64; 130] = std::array::from_fn(|i| {
         (0..64).fold(0, |acc, j| {
             acc | ((*s.get_unchecked((i) + (127 - j) * 131) == b'#') as u64) << j
         })
     });
-    let mut up_hi: [u64; 130] = std::array::from_fn(|i| {
+    let up_hi: [u64; 130] = std::array::from_fn(|i| {
         (0..64).fold(0, |acc, j| {
             acc | ((*s.get_unchecked((i) + (63 - j) * 131) == b'#') as u64) << j
         })
     });
-    let mut right_lo: [u64; 130] = std::array::from_fn(|i| {
+    let right_lo: [u64; 130] = std::array::from_fn(|i| {
         (0..64).fold(0, |acc, j| {
             acc | ((*s.get_unchecked((2 + j) + (i) * 131) == b'#') as u64) << j
         })
     });
-    let mut right_hi: [u64; 130] = std::array::from_fn(|i| {
+    let right_hi: [u64; 130] = std::array::from_fn(|i| {
         (0..64).fold(0, |acc, j| {
             acc | ((*s.get_unchecked((66 + j) + (i) * 131) == b'#') as u64) << j
         })
     });
-    let mut down_lo: [u64; 130] = std::array::from_fn(|i| {
+    let down_lo: [u64; 130] = std::array::from_fn(|i| {
         (0..64).fold(0, |acc, j| {
             acc | ((*s.get_unchecked((i) + (2 + j) * 131) == b'#') as u64) << j
         })
     });
-    let mut down_hi: [u64; 130] = std::array::from_fn(|i| {
+    let down_hi: [u64; 130] = std::array::from_fn(|i| {
         (0..64).fold(0, |acc, j| {
             acc | ((*s.get_unchecked((i) + (66 + j) * 131) == b'#') as u64) << j
         })
     });
-    let mut left_lo: [u64; 130] = std::array::from_fn(|i| {
+    let left_lo: [u64; 130] = std::array::from_fn(|i| {
         (0..64).fold(0, |acc, j| {
             acc | ((*s.get_unchecked((127 - j) + (i) * 131) == b'#') as u64) << j
         })
     });
-    let mut left_hi: [u64; 130] = std::array::from_fn(|i| {
+    let left_hi: [u64; 130] = std::array::from_fn(|i| {
         (0..64).fold(0, |acc, j| {
             acc | ((*s.get_unchecked((63 - j) + (i) * 131) == b'#') as u64) << j
         })
     });
-
-    black_box((
-        &mut up_lo,
-        &mut up_hi,
-        &mut right_lo,
-        &mut right_hi,
-        &mut down_lo,
-        &mut down_hi,
-        &mut left_lo,
-        &mut left_hi,
-    ));
 
     let visited = &mut SCRATCH;
     visited.fill(Simd::splat(0));
