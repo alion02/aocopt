@@ -288,7 +288,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         while y != c {
             *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) |= 1;
             y -= 1;
-            if !*tables.visited.get_unchecked(y).get_unchecked(x) != 0 {
+            if *tables.visited.get_unchecked(y).get_unchecked(x) == 0 {
                 toggle_wall!(x, y);
                 total += go_right(&mut tables, masks, x, y + 1) as u32;
                 toggle_wall!(x, y);
@@ -304,7 +304,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         while x != c {
             *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) |= 2;
             x += 1;
-            if !*tables.visited.get_unchecked(y).get_unchecked(x) != 0 {
+            if *tables.visited.get_unchecked(y).get_unchecked(x) == 0 {
                 toggle_wall!(x, y);
                 total += go_down(&mut tables, masks, x - 1, y) as u32;
                 toggle_wall!(x, y);
@@ -320,7 +320,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         while y != c {
             *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) |= 4;
             y += 1;
-            if !*tables.visited.get_unchecked(y).get_unchecked(x) != 0 {
+            if *tables.visited.get_unchecked(y).get_unchecked(x) == 0 {
                 toggle_wall!(x, y);
                 total += go_left(&mut tables, masks, x, y - 1) as u32;
                 toggle_wall!(x, y);
@@ -337,7 +337,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         while x != c {
             *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) |= 8;
             x -= 1;
-            if !*tables.visited.get_unchecked(y).get_unchecked(x) != 0 {
+            if *tables.visited.get_unchecked(y).get_unchecked(x) == 0 {
                 toggle_wall!(x, y);
                 total += go_up(&mut tables, masks, x + 1, y) as u32;
                 toggle_wall!(x, y);
