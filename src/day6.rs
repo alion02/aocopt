@@ -142,7 +142,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
 
     struct Tables {
         obstacles: [[u128; 130]; 4],
-        visited: [[bool; 130]; 130],
+        visited: [[u8; 130]; 130],
     }
 
     let mut tables = Tables {
@@ -170,7 +170,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         //     _ => unreachable_unchecked(),
         // }),
         obstacles: [[0; 130]; 4],
-        visited: [[false; 130]; 130],
+        visited: [[0; 130]; 130],
     };
 
     macro_rules! toggle_wall {
@@ -208,15 +208,15 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         if obstacle_mask == 0 {
             return false;
         }
-        let c = obstacle_mask.trailing_zeros() as usize;
-        y = 128 - c;
+        let c = 128 - obstacle_mask.trailing_zeros() as usize;
+        y = c;
         let cell = tables.visited.get_unchecked_mut(y).get_unchecked_mut(x);
-        if *cell {
+        if *cell & 1 != 0 {
             return true;
         }
-        *cell = true;
+        *cell |= 1;
         let r = go_right(tables, masks, x, y);
-        *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) = false; // aaa
+        *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) &= !1; // aaa
         r
     }
 
@@ -227,15 +227,15 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         if obstacle_mask == 0 {
             return false;
         }
-        let c = obstacle_mask.trailing_zeros() as usize;
-        x = c + 1;
+        let c = obstacle_mask.trailing_zeros() as usize + 1;
+        x = c;
         let cell = tables.visited.get_unchecked_mut(y).get_unchecked_mut(x);
-        if *cell {
+        if *cell & 2 != 0 {
             return true;
         }
-        *cell = true;
+        *cell |= 2;
         let r = go_down(tables, masks, x, y);
-        *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) = false; // aaa
+        *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) &= !2; // aaa
         r
     }
 
@@ -246,15 +246,15 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         if obstacle_mask == 0 {
             return false;
         }
-        let c = obstacle_mask.trailing_zeros() as usize;
-        y = c + 1;
+        let c = obstacle_mask.trailing_zeros() as usize + 1;
+        y = c;
         let cell = tables.visited.get_unchecked_mut(y).get_unchecked_mut(x);
-        if *cell {
+        if *cell & 4 != 0 {
             return true;
         }
-        *cell = true;
+        *cell |= 4;
         let r = go_left(tables, masks, x, y);
-        *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) = false; // aaa
+        *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) &= !4; // aaa
         r
     }
 
@@ -266,15 +266,15 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         if obstacle_mask == 0 {
             return false;
         }
-        let c = obstacle_mask.trailing_zeros() as usize;
-        x = 128 - c;
+        let c = 128 - obstacle_mask.trailing_zeros() as usize;
+        x = c;
         let cell = tables.visited.get_unchecked_mut(y).get_unchecked_mut(x);
-        if *cell {
+        if *cell & 8 != 0 {
             return true;
         }
-        *cell = true;
+        *cell |= 8;
         let r = go_up(tables, masks, x, y);
-        *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) = false; // aaa
+        *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) &= !8; // aaa
         r
     }
 
@@ -286,9 +286,9 @@ unsafe fn inner2(s: &[u8]) -> u32 {
                 | (*masks.get_unchecked(128 - y) as u128) << 64);
         let c = 128usize.wrapping_sub(obstacle_mask.trailing_zeros() as usize);
         while y != c {
-            *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) = true;
+            *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) |= 1;
             y -= 1;
-            if !*tables.visited.get_unchecked(y).get_unchecked(x) {
+            if !*tables.visited.get_unchecked(y).get_unchecked(x) != 0 {
                 toggle_wall!(x, y);
                 total += go_right(&mut tables, masks, x, y + 1) as u32;
                 toggle_wall!(x, y);
@@ -302,9 +302,9 @@ unsafe fn inner2(s: &[u8]) -> u32 {
             & (*masks.get_unchecked(x + 63) as u128 | (*masks.get_unchecked(x - 1) as u128) << 64);
         let c = obstacle_mask.trailing_zeros() as usize + 1;
         while x != c {
-            *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) = true;
+            *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) |= 2;
             x += 1;
-            if !*tables.visited.get_unchecked(y).get_unchecked(x) {
+            if !*tables.visited.get_unchecked(y).get_unchecked(x) != 0 {
                 toggle_wall!(x, y);
                 total += go_down(&mut tables, masks, x - 1, y) as u32;
                 toggle_wall!(x, y);
@@ -318,9 +318,9 @@ unsafe fn inner2(s: &[u8]) -> u32 {
             & (*masks.get_unchecked(y + 63) as u128 | (*masks.get_unchecked(y - 1) as u128) << 64);
         let c = obstacle_mask.trailing_zeros() as usize + 1;
         while y != c {
-            *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) = true;
+            *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) |= 4;
             y += 1;
-            if !*tables.visited.get_unchecked(y).get_unchecked(x) {
+            if !*tables.visited.get_unchecked(y).get_unchecked(x) != 0 {
                 toggle_wall!(x, y);
                 total += go_left(&mut tables, masks, x, y - 1) as u32;
                 toggle_wall!(x, y);
@@ -335,9 +335,9 @@ unsafe fn inner2(s: &[u8]) -> u32 {
                 | (*masks.get_unchecked(128 - x) as u128) << 64);
         let c = 128usize.wrapping_sub(obstacle_mask.trailing_zeros() as usize);
         while x != c {
-            *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) = true;
+            *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) |= 8;
             x -= 1;
-            if !*tables.visited.get_unchecked(y).get_unchecked(x) {
+            if !*tables.visited.get_unchecked(y).get_unchecked(x) != 0 {
                 toggle_wall!(x, y);
                 total += go_up(&mut tables, masks, x + 1, y) as u32;
                 toggle_wall!(x, y);
@@ -348,11 +348,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         }
     }
 
-    tables
-        .visited
-        .iter()
-        .flat_map(|b| b.iter().map(|b| *b as u32))
-        .sum()
+    total
 }
 
 pub fn part1(s: &str) -> impl Display {
