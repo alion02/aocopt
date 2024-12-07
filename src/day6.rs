@@ -1,10 +1,7 @@
-use std::hint::{black_box, unreachable_unchecked};
-
 use super::*;
 
-static mut SCRATCH: [u8x32; 67] = [u8x32::from_array([0; 32]); 67];
-
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+#[allow(unreachable_code)]
 unsafe fn inner1(s: &[u8]) -> u32 {
     let r = s.as_ptr_range();
     let mut loc = r.start;
@@ -29,24 +26,14 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         mask = in(ymm_reg) u8x32::splat(0x40),
         c1 = out(ymm_reg) _,
         r1 = out(reg) _,
-        options(nostack, readonly),
     );
-    let visited = &mut SCRATCH;
-    visited.fill(Simd::splat(0));
     let mut loc = loc.offset_from(r.start) as usize;
+    let mut new = [true; 131 * 130];
     let mut total = 0;
-    macro_rules! visit {
-        () => {
-            let bit = 1u32.wrapping_shl(loc as u32);
-            let cell = (visited as *mut _ as *mut u32).add(loc / 32);
-            let value = cell.read();
-            total += (value & bit == 0) as u32;
-            cell.write(value | bit);
-        };
-    }
     'outer: loop {
         loop {
-            visit!();
+            total += *new.get_unchecked(loc) as u32;
+            *new.get_unchecked_mut(loc) = false;
             let next = loc.wrapping_sub(131);
             if next >= s.len() {
                 break 'outer;
@@ -58,7 +45,8 @@ unsafe fn inner1(s: &[u8]) -> u32 {
             loc = next;
         }
         loop {
-            visit!();
+            total += *new.get_unchecked(loc) as u32;
+            *new.get_unchecked_mut(loc) = false;
             let next = loc.wrapping_add(1);
             if *s.get_unchecked(next) == b'\n' {
                 break 'outer;
@@ -70,7 +58,8 @@ unsafe fn inner1(s: &[u8]) -> u32 {
             loc = next;
         }
         loop {
-            visit!();
+            total += *new.get_unchecked(loc) as u32;
+            *new.get_unchecked_mut(loc) = false;
             let next = loc.wrapping_add(131);
             if next >= s.len() {
                 break 'outer;
@@ -82,7 +71,8 @@ unsafe fn inner1(s: &[u8]) -> u32 {
             loc = next;
         }
         loop {
-            visit!();
+            total += *new.get_unchecked(loc) as u32;
+            *new.get_unchecked_mut(loc) = false;
             let next = loc.wrapping_sub(1);
             if *s.get_unchecked(next) == b'\n' {
                 break 'outer;
@@ -357,88 +347,3 @@ mod tests {
         );
     }
 }
-
-// #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-// unsafe fn is_loop(
-//     tables: &mut Tables,
-//     mut x: usize,
-//     mut y: usize,
-//     mut initial_d: u32,
-//     masks: &[u64; 193],
-// ) -> bool {
-//     loop {
-//         'left: {
-//             'down: {
-//                 'right: {
-//                     'up: {
-//                         match initial_d {
-//                             0 => break 'up,
-//                             1 => break 'right,
-//                             2 => break 'down,
-//                             3 => break 'left,
-//                             _ => unreachable_unchecked(),
-//                         }
-//                     }
-//                     let near =
-//                         tables.obstacles[0].get_unchecked(x) & masks.get_unchecked(192 - y);
-//                     let far =
-//                         tables.obstacles[1].get_unchecked(x) & masks.get_unchecked(128 - y);
-//                     if near | far == 0 {
-//                         return false;
-//                     }
-//                     let c_lo = near.trailing_zeros();
-//                     let c_hi = far.trailing_zeros() + 64;
-//                     let c = if c_lo == 64 { c_hi } else { c_lo };
-//                     y = 128 - c as usize;
-//                     let cell = tables.visited.get_unchecked_mut(y).get_unchecked_mut(x);
-//                     if *cell {
-//                         return true;
-//                     }
-//                     *cell = true;
-//                 }
-//                 let near = tables.obstacles[2].get_unchecked(y) & masks.get_unchecked(x + 63);
-//                 let far = tables.obstacles[3].get_unchecked(y) & masks.get_unchecked(x - 1);
-//                 if near | far == 0 {
-//                     return false;
-//                 }
-//                 let c_lo = near.trailing_zeros();
-//                 let c_hi = far.trailing_zeros() + 64;
-//                 let c = if c_lo == 64 { c_hi } else { c_lo };
-//                 x = c as usize + 1;
-//                 let cell = tables.visited.get_unchecked_mut(y).get_unchecked_mut(x);
-//                 if *cell {
-//                     return true;
-//                 }
-//                 *cell = true;
-//             }
-//             let near = tables.obstacles[4].get_unchecked(x) & masks.get_unchecked(y + 63);
-//             let far = tables.obstacles[5].get_unchecked(x) & masks.get_unchecked(y - 1);
-//             if near | far == 0 {
-//                 return false;
-//             }
-//             let c_lo = near.trailing_zeros();
-//             let c_hi = far.trailing_zeros() + 64;
-//             let c = if c_lo == 64 { c_hi } else { c_lo };
-//             y = c as usize + 1;
-//             let cell = tables.visited.get_unchecked_mut(y).get_unchecked_mut(x);
-//             if *cell {
-//                 return true;
-//             }
-//             *cell = true;
-//         }
-//         let near = tables.obstacles[6].get_unchecked(y) & masks.get_unchecked(192 - x);
-//         let far = tables.obstacles[7].get_unchecked(y) & masks.get_unchecked(128 - x);
-//         if near | far == 0 {
-//             return false;
-//         }
-//         let c_lo = near.trailing_zeros();
-//         let c_hi = far.trailing_zeros() + 64;
-//         let c = if c_lo == 64 { c_hi } else { c_lo };
-//         x = 128 - c as usize;
-//         let cell = tables.visited.get_unchecked_mut(y).get_unchecked_mut(x);
-//         if *cell {
-//             return true;
-//         }
-//         *cell = true;
-//     }
-// }
