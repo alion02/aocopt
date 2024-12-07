@@ -321,8 +321,9 @@ unsafe fn inner2(s: &[u8]) -> u32 {
             }
         }
 
-        let obstacle_mask = tables.obstacles[1].get_unchecked(y)
-            & (*masks.get_unchecked(x + 63) as u128 | (*masks.get_unchecked(x - 1) as u128) << 64);
+        let obstacle_mask = tables.obstacles[3].get_unchecked(y)
+            & (*masks.get_unchecked(192 - x) as u128
+                | (*masks.get_unchecked(128 - x) as u128) << 64);
         if obstacle_mask == 0 {
             break;
         }
