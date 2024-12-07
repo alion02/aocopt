@@ -50,8 +50,10 @@ unsafe fn inner1(s: &[u8]) -> u64 {
         #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
         unsafe fn f(target: u64, list: *mut u16, list_end: *mut u16) -> bool {
             let curr = *list as u64;
-            list == list_end && target == curr
-                || target % curr == 0 && f(target / curr, list.sub(1), list_end)
+            if list == list_end {
+                return target == curr;
+            }
+            target % curr == 0 && f(target / curr, list.sub(1), list_end)
                 || target > curr && f(target - curr, list.sub(1), list_end)
         }
 
