@@ -137,10 +137,10 @@ unsafe fn inner2(s: &[u8]) -> u32 {
 
     struct Tables {
         obstacles: [[u64; 130]; 8],
-        visisted: [[bool; 130]; 130],
+        visited: [[bool; 130]; 130],
     }
 
-    let tables = Tables {
+    let mut tables = Tables {
         obstacles: [
             std::array::from_fn(|i| {
                 (0..64).fold(0, |acc, j| {
@@ -183,7 +183,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
                 })
             }),
         ],
-        visisted: [[false; 130]; 130],
+        visited: [[false; 130]; 130],
     };
 
     let masks = &MASKS;
