@@ -6,8 +6,22 @@ use super::*;
 // target digit count range 2?-15?
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-#[allow(unreachable_code)]
-unsafe fn inner1(s: &[u8]) -> u64 {
+unsafe fn process<const P2: bool>(s: &[u8]) -> u64 {
+    #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+    unsafe fn f<const P2: bool>(target: u64, list: *mut u16, list_end: *mut u16) -> bool {
+        let curr = *list as u64;
+        if list == list_end {
+            return target == curr;
+        }
+        let next = list.sub(1);
+        target % curr == 0 && f::<P2>(target / curr, next, list_end)
+            || P2 && {
+                let divisor = 10u32.pow(curr.ilog2() + 1) as u64;
+                target % divisor == 0 && f::<P2>(target / divisor, next, list_end)
+            }
+            || target > curr && f::<P2>(target - curr, next, list_end)
+    }
+
     let r = s.as_ptr_range();
     let mut ptr = r.start;
     let mut total = 0;
@@ -47,17 +61,7 @@ unsafe fn inner1(s: &[u8]) -> u64 {
             }
         }
 
-        #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-        unsafe fn f(target: u64, list: *mut u16, list_end: *mut u16) -> bool {
-            let curr = *list as u64;
-            if list == list_end {
-                return target == curr;
-            }
-            target % curr == 0 && f(target / curr, list.sub(1), list_end)
-                || target > curr && f(target - curr, list.sub(1), list_end)
-        }
-
-        if f(target, list, list_end) {
+        if f::<P2>(target, list, list_end) {
             total += target;
         }
 
@@ -87,12 +91,18 @@ unsafe fn inner1(s: &[u8]) -> u64 {
 }
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-unsafe fn inner2(s: &[u8]) -> u64 {
-    0
+#[allow(unreachable_code)]
+unsafe fn inner1(s: &[u8]) -> u64 {
+    process::<false>(s)
 }
 
 pub fn part1(s: &str) -> impl Display {
     unsafe { inner1(s.as_bytes()) }
+}
+
+#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+unsafe fn inner2(s: &[u8]) -> u64 {
+    process::<true>(s)
 }
 
 pub fn part2(s: &str) -> impl Display {
