@@ -146,31 +146,57 @@ unsafe fn inner2(s: &[u8]) -> u32 {
     }
 
     let mut tables = Tables {
-        obstacles: std::array::from_fn(|i| match i {
-            0 => std::array::from_fn(|i| {
-                (0..128).fold(0, |acc, j| {
-                    acc | ((*s.get_unchecked((i) + (127 - j) * 131) == b'#') as u128) << j
-                })
-            }),
-            1 => std::array::from_fn(|i| {
-                (0..128).fold(0, |acc, j| {
-                    acc | ((*s.get_unchecked((2 + j) + (i) * 131) == b'#') as u128) << j
-                })
-            }),
-            2 => std::array::from_fn(|i| {
-                (0..128).fold(0, |acc, j| {
-                    acc | ((*s.get_unchecked((i) + (2 + j) * 131) == b'#') as u128) << j
-                })
-            }),
-            3 => std::array::from_fn(|i| {
-                (0..128).fold(0, |acc, j| {
-                    acc | ((*s.get_unchecked((127 - j) + (i) * 131) == b'#') as u128) << j
-                })
-            }),
-            _ => unreachable_unchecked(),
-        }),
+        // obstacles: std::array::from_fn(|i| match i {
+        //     0 => std::array::from_fn(|i| {
+        //         (0..128).fold(0, |acc, j| {
+        //             acc | ((*s.get_unchecked((i) + (127 - j) * 131) == b'#') as u128) << j
+        //         })
+        //     }),
+        //     1 => std::array::from_fn(|i| {
+        //         (0..128).fold(0, |acc, j| {
+        //             acc | ((*s.get_unchecked((2 + j) + (i) * 131) == b'#') as u128) << j
+        //         })
+        //     }),
+        //     2 => std::array::from_fn(|i| {
+        //         (0..128).fold(0, |acc, j| {
+        //             acc | ((*s.get_unchecked((i) + (2 + j) * 131) == b'#') as u128) << j
+        //         })
+        //     }),
+        //     3 => std::array::from_fn(|i| {
+        //         (0..128).fold(0, |acc, j| {
+        //             acc | ((*s.get_unchecked((127 - j) + (i) * 131) == b'#') as u128) << j
+        //         })
+        //     }),
+        //     _ => unreachable_unchecked(),
+        // }),
+        obstacles: [[0; 130]; 4],
         visited: [[false; 130]; 130],
     };
+
+    macro_rules! toggle_wall {
+        ($x:expr, $y:expr) => {
+            if $y <= 127 {
+                *tables.obstacles[0].get_unchecked_mut($x) ^= 1 << 127 - $y;
+            }
+            if $x >= 2 {
+                *tables.obstacles[1].get_unchecked_mut($y) ^= 1 << $x - 2;
+            }
+            if $y >= 2 {
+                *tables.obstacles[2].get_unchecked_mut($x) ^= 1 << $y - 2;
+            }
+            if $x <= 127 {
+                *tables.obstacles[3].get_unchecked_mut($y) ^= 1 << 127 - $x;
+            }
+        };
+    }
+
+    for y in 0..130 {
+        for x in 0..130 {
+            if *s.get_unchecked(y * 131 + x) == b'#' {
+                toggle_wall!(x, y);
+            }
+        }
+    }
 
     let masks = &MASKS;
 
@@ -254,23 +280,6 @@ unsafe fn inner2(s: &[u8]) -> u32 {
 
     let mut total = 0;
 
-    macro_rules! toggle_wall {
-        ($x:expr, $y:expr) => {
-            if $y <= 127 {
-                *tables.obstacles[0].get_unchecked_mut($x) ^= 1 << 127 - $y;
-            }
-            if $x >= 2 {
-                *tables.obstacles[1].get_unchecked_mut($y) ^= 1 << $x - 2;
-            }
-            if $y >= 2 {
-                *tables.obstacles[2].get_unchecked_mut($x) ^= 1 << $y - 2;
-            }
-            if $x <= 127 {
-                *tables.obstacles[3].get_unchecked_mut($y) ^= 1 << 127 - $x;
-            }
-        };
-    }
-
     loop {
         let obstacle_mask = tables.obstacles[0].get_unchecked(x)
             & (*masks.get_unchecked(192 - y) as u128
@@ -278,8 +287,8 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         if obstacle_mask == 0 {
             break;
         }
-        let c = obstacle_mask.trailing_zeros() as usize;
-        while y > c {
+        let c = 128 - obstacle_mask.trailing_zeros() as usize;
+        while y != c {
             *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) = true;
             y -= 1;
             if !*tables.visited.get_unchecked(y).get_unchecked(x) {
@@ -294,8 +303,8 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         if obstacle_mask == 0 {
             break;
         }
-        let c = obstacle_mask.trailing_zeros() as usize;
-        while x < c {
+        let c = obstacle_mask.trailing_zeros() as usize + 1;
+        while x != c {
             *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) = true;
             x += 1;
             if !*tables.visited.get_unchecked(y).get_unchecked(x) {
@@ -310,8 +319,8 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         if obstacle_mask == 0 {
             break;
         }
-        let c = obstacle_mask.trailing_zeros() as usize;
-        while y < c {
+        let c = obstacle_mask.trailing_zeros() as usize + 1;
+        while y != c {
             *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) = true;
             y += 1;
             if !*tables.visited.get_unchecked(y).get_unchecked(x) {
@@ -327,8 +336,8 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         if obstacle_mask == 0 {
             break;
         }
-        let c = obstacle_mask.trailing_zeros() as usize;
-        while x > c {
+        let c = 128 - obstacle_mask.trailing_zeros() as usize;
+        while x != c {
             *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) = true;
             x -= 1;
             if !*tables.visited.get_unchecked(y).get_unchecked(x) {
@@ -339,7 +348,41 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         }
     }
 
-    total
+    tables
+        .visited
+        .iter()
+        .flat_map(|b| b.iter().map(|b| *b as u32))
+        .sum()
+}
+
+pub fn part1(s: &str) -> impl Display {
+    unsafe { inner1(s.as_bytes()) }
+}
+
+pub fn part2(s: &str) -> impl Display {
+    unsafe { inner2(s.as_bytes()) }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs::read_to_string;
+
+    use super::*;
+
+    #[test]
+    fn test() {
+        let s = read_to_string("./inputs/6.txt").unwrap();
+        let s = s.as_str();
+
+        assert_eq!(
+            part1(s).to_string(),
+            read_to_string("./outputs/6p1.txt").unwrap(),
+        );
+        assert_eq!(
+            part2(s).to_string(),
+            read_to_string("./outputs/6p2.txt").unwrap(),
+        );
+    }
 }
 
 // #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
@@ -426,33 +469,3 @@ unsafe fn inner2(s: &[u8]) -> u32 {
 //         *cell = true;
 //     }
 // }
-
-pub fn part1(s: &str) -> impl Display {
-    unsafe { inner1(s.as_bytes()) }
-}
-
-pub fn part2(s: &str) -> impl Display {
-    unsafe { inner2(s.as_bytes()) }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::fs::read_to_string;
-
-    use super::*;
-
-    #[test]
-    fn test() {
-        let s = read_to_string("./inputs/6.txt").unwrap();
-        let s = s.as_str();
-
-        assert_eq!(
-            part1(s).to_string(),
-            read_to_string("./outputs/6p1.txt").unwrap(),
-        );
-        assert_eq!(
-            part2(s).to_string(),
-            read_to_string("./outputs/6p2.txt").unwrap(),
-        );
-    }
-}
