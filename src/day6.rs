@@ -29,6 +29,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         mask = in(ymm_reg) u8x32::splat(0x40),
         c1 = out(ymm_reg) _,
         r1 = out(reg) _,
+        options(nostack, readonly),
     );
     let visited = &mut SCRATCH;
     visited.fill(Simd::splat(0));
@@ -98,6 +99,42 @@ unsafe fn inner1(s: &[u8]) -> u32 {
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn inner2(s: &[u8]) -> u32 {
+    static MASKS: [u64; 193] = {
+        let mut masks = [0; 193];
+        let mut i = 0;
+        while i < 128 {
+            masks[i] = ((!0u128 << i) >> 64) as u64;
+            i += 1;
+        }
+        masks
+    };
+
+    let r = s.as_ptr_range();
+    let mut loc = r.start;
+    asm!(
+        "jmp 21f",
+    "20:",
+        "add {loc}, 64",
+    "21:",
+        "vmovdqu {c1}, ymmword ptr[{loc}]",
+        "vptest {c1}, {mask}",
+        "jnz 22f",
+        "vmovdqu {c1}, ymmword ptr[{loc} + 32]",
+        "vptest {c1}, {mask}",
+        "jz 20b",
+        "add {loc}, 32",
+    "22:",
+        "vpsllw {c1}, {c1}, 1",
+        "vpmovmskb {r1:e}, {c1}",
+        "tzcnt {r1:e}, {r1:e}",
+        "add {loc}, {r1}",
+        loc = inout(reg) loc,
+        mask = in(ymm_reg) u8x32::splat(0x40),
+        c1 = out(ymm_reg) _,
+        r1 = out(reg) _,
+        options(nostack, readonly),
+    );
+
     let mut up_lo: [u64; 130] = std::array::from_fn(|i| {
         (0..64).fold(0, |acc, j| {
             acc | ((*s.get_unchecked((i) + (127 - j) * 131) == b'#') as u64) << j
@@ -138,6 +175,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
             acc | ((*s.get_unchecked((63 - j) + (i) * 131) == b'#') as u64) << j
         })
     });
+
     black_box((
         &mut up_lo,
         &mut up_hi,
@@ -148,6 +186,59 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         &mut left_lo,
         &mut left_hi,
     ));
+
+    let visited = &mut SCRATCH;
+    visited.fill(Simd::splat(0));
+
+    let masks = &MASKS;
+
+    let loc = loc.offset_from(r.start) as usize;
+
+    let mut x = loc % 131;
+    let mut y = loc / 131;
+
+    loop {
+        let near = up_lo.get_unchecked(x) & masks.get_unchecked(192 - y);
+        let far = up_hi.get_unchecked(x) & masks.get_unchecked(128 - y);
+        if near | far == 0 {
+            break;
+        }
+        let c_lo = near.trailing_zeros();
+        let c_hi = far.trailing_zeros() + 64;
+        let c = if c_lo == 64 { c_hi } else { c_lo };
+        y = 128 - c as usize;
+
+        let near = right_lo.get_unchecked(y) & masks.get_unchecked(x + 63);
+        let far = right_hi.get_unchecked(y) & masks.get_unchecked(x - 1);
+        if near | far == 0 {
+            break;
+        }
+        let c_lo = near.trailing_zeros();
+        let c_hi = far.trailing_zeros() + 64;
+        let c = if c_lo == 64 { c_hi } else { c_lo };
+        x = c as usize + 1;
+
+        let near = down_lo.get_unchecked(x) & masks.get_unchecked(y + 63);
+        let far = down_hi.get_unchecked(x) & masks.get_unchecked(y - 1);
+        if near | far == 0 {
+            break;
+        }
+        let c_lo = near.trailing_zeros();
+        let c_hi = far.trailing_zeros() + 64;
+        let c = if c_lo == 64 { c_hi } else { c_lo };
+        y = c as usize + 1;
+
+        let near = left_lo.get_unchecked(y) & masks.get_unchecked(192 - x);
+        let far = left_hi.get_unchecked(y) & masks.get_unchecked(128 - x);
+        if near | far == 0 {
+            break;
+        }
+        let c_lo = near.trailing_zeros();
+        let c_hi = far.trailing_zeros() + 64;
+        let c = if c_lo == 64 { c_hi } else { c_lo };
+        x = 128 - c as usize;
+    }
+
     0
 }
 
