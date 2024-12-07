@@ -141,50 +141,30 @@ unsafe fn inner2(s: &[u8]) -> u32 {
     let mut y = loc / 131;
 
     struct Tables {
-        obstacles: [[u64; 130]; 8],
+        obstacles: [[u128; 130]; 4],
         visited: [[bool; 130]; 130],
     }
 
     let mut tables = Tables {
         obstacles: std::array::from_fn(|i| match i {
             0 => std::array::from_fn(|i| {
-                (0..64).fold(0, |acc, j| {
-                    acc | ((*s.get_unchecked((i) + (127 - j) * 131) == b'#') as u64) << j
+                (0..128).fold(0, |acc, j| {
+                    acc | ((*s.get_unchecked((i) + (127 - j) * 131) == b'#') as u128) << j
                 })
             }),
             1 => std::array::from_fn(|i| {
-                (0..64).fold(0, |acc, j| {
-                    acc | ((*s.get_unchecked((i) + (63 - j) * 131) == b'#') as u64) << j
+                (0..128).fold(0, |acc, j| {
+                    acc | ((*s.get_unchecked((2 + j) + (i) * 131) == b'#') as u128) << j
                 })
             }),
             2 => std::array::from_fn(|i| {
-                (0..64).fold(0, |acc, j| {
-                    acc | ((*s.get_unchecked((2 + j) + (i) * 131) == b'#') as u64) << j
+                (0..128).fold(0, |acc, j| {
+                    acc | ((*s.get_unchecked((i) + (2 + j) * 131) == b'#') as u128) << j
                 })
             }),
             3 => std::array::from_fn(|i| {
-                (0..64).fold(0, |acc, j| {
-                    acc | ((*s.get_unchecked((66 + j) + (i) * 131) == b'#') as u64) << j
-                })
-            }),
-            4 => std::array::from_fn(|i| {
-                (0..64).fold(0, |acc, j| {
-                    acc | ((*s.get_unchecked((i) + (2 + j) * 131) == b'#') as u64) << j
-                })
-            }),
-            5 => std::array::from_fn(|i| {
-                (0..64).fold(0, |acc, j| {
-                    acc | ((*s.get_unchecked((i) + (66 + j) * 131) == b'#') as u64) << j
-                })
-            }),
-            6 => std::array::from_fn(|i| {
-                (0..64).fold(0, |acc, j| {
-                    acc | ((*s.get_unchecked((127 - j) + (i) * 131) == b'#') as u64) << j
-                })
-            }),
-            7 => std::array::from_fn(|i| {
-                (0..64).fold(0, |acc, j| {
-                    acc | ((*s.get_unchecked((63 - j) + (i) * 131) == b'#') as u64) << j
+                (0..128).fold(0, |acc, j| {
+                    acc | ((*s.get_unchecked((127 - j) + (i) * 131) == b'#') as u128) << j
                 })
             }),
             _ => unreachable_unchecked(),
@@ -196,15 +176,14 @@ unsafe fn inner2(s: &[u8]) -> u32 {
 
     #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
     unsafe fn go_up(tables: &mut Tables, masks: &[u64; 193], x: usize, mut y: usize) -> bool {
-        let near = tables.obstacles[0].get_unchecked(x) & masks.get_unchecked(192 - y);
-        let far = tables.obstacles[1].get_unchecked(x) & masks.get_unchecked(128 - y);
-        if near | far == 0 {
+        let obstacle_mask = tables.obstacles[0].get_unchecked(x)
+            & (*masks.get_unchecked(192 - y) as u128
+                | (*masks.get_unchecked(128 - y) as u128) << 64);
+        if obstacle_mask == 0 {
             return false;
         }
-        let c_lo = near.trailing_zeros();
-        let c_hi = far.trailing_zeros() + 64;
-        let c = if c_lo == 64 { c_hi } else { c_lo };
-        y = 128 - c as usize;
+        let c = obstacle_mask.trailing_zeros() as usize;
+        y = 128 - c;
         let cell = tables.visited.get_unchecked_mut(y).get_unchecked_mut(x);
         if *cell {
             return true;
@@ -217,15 +196,13 @@ unsafe fn inner2(s: &[u8]) -> u32 {
 
     #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
     unsafe fn go_right(tables: &mut Tables, masks: &[u64; 193], mut x: usize, y: usize) -> bool {
-        let near = tables.obstacles[2].get_unchecked(y) & masks.get_unchecked(x + 63);
-        let far = tables.obstacles[3].get_unchecked(y) & masks.get_unchecked(x - 1);
-        if near | far == 0 {
+        let obstacle_mask = tables.obstacles[1].get_unchecked(y)
+            & (*masks.get_unchecked(x + 63) as u128 | (*masks.get_unchecked(x - 1) as u128) << 64);
+        if obstacle_mask == 0 {
             return false;
         }
-        let c_lo = near.trailing_zeros();
-        let c_hi = far.trailing_zeros() + 64;
-        let c = if c_lo == 64 { c_hi } else { c_lo };
-        x = c as usize + 1;
+        let c = obstacle_mask.trailing_zeros() as usize;
+        x = c + 1;
         let cell = tables.visited.get_unchecked_mut(y).get_unchecked_mut(x);
         if *cell {
             return true;
@@ -238,15 +215,13 @@ unsafe fn inner2(s: &[u8]) -> u32 {
 
     #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
     unsafe fn go_down(tables: &mut Tables, masks: &[u64; 193], x: usize, mut y: usize) -> bool {
-        let near = tables.obstacles[4].get_unchecked(x) & masks.get_unchecked(y + 63);
-        let far = tables.obstacles[5].get_unchecked(x) & masks.get_unchecked(y - 1);
-        if near | far == 0 {
+        let obstacle_mask = tables.obstacles[2].get_unchecked(x)
+            & (*masks.get_unchecked(y + 63) as u128 | (*masks.get_unchecked(y - 1) as u128) << 64);
+        if obstacle_mask == 0 {
             return false;
         }
-        let c_lo = near.trailing_zeros();
-        let c_hi = far.trailing_zeros() + 64;
-        let c = if c_lo == 64 { c_hi } else { c_lo };
-        y = c as usize + 1;
+        let c = obstacle_mask.trailing_zeros() as usize;
+        y = c + 1;
         let cell = tables.visited.get_unchecked_mut(y).get_unchecked_mut(x);
         if *cell {
             return true;
@@ -259,15 +234,14 @@ unsafe fn inner2(s: &[u8]) -> u32 {
 
     #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
     unsafe fn go_left(tables: &mut Tables, masks: &[u64; 193], mut x: usize, y: usize) -> bool {
-        let near = tables.obstacles[6].get_unchecked(y) & masks.get_unchecked(192 - x);
-        let far = tables.obstacles[7].get_unchecked(y) & masks.get_unchecked(128 - x);
-        if near | far == 0 {
+        let obstacle_mask = tables.obstacles[3].get_unchecked(y)
+            & (*masks.get_unchecked(192 - x) as u128
+                | (*masks.get_unchecked(128 - x) as u128) << 64);
+        if obstacle_mask == 0 {
             return false;
         }
-        let c_lo = near.trailing_zeros();
-        let c_hi = far.trailing_zeros() + 64;
-        let c = if c_lo == 64 { c_hi } else { c_lo };
-        x = 128 - c as usize;
+        let c = obstacle_mask.trailing_zeros() as usize;
+        x = 128 - c;
         let cell = tables.visited.get_unchecked_mut(y).get_unchecked_mut(x);
         if *cell {
             return true;
@@ -280,52 +254,75 @@ unsafe fn inner2(s: &[u8]) -> u32 {
 
     let mut total = 0;
 
+    macro_rules! toggle_wall {
+        ($x:expr, $y:expr) => {};
+    }
+
     loop {
-        let near = tables.obstacles[0].get_unchecked(x) & masks.get_unchecked(192 - y);
-        let far = tables.obstacles[1].get_unchecked(x) & masks.get_unchecked(128 - y);
-        if near | far == 0 {
+        let obstacle_mask = tables.obstacles[0].get_unchecked(x)
+            & (*masks.get_unchecked(192 - y) as u128
+                | (*masks.get_unchecked(128 - y) as u128) << 64);
+        if obstacle_mask == 0 {
             break;
         }
-        let c_lo = near.trailing_zeros();
-        let c_hi = far.trailing_zeros() + 64;
-        let c = if c_lo == 64 { c_hi } else { c_lo } as usize;
-        while y < c {
+        let c = obstacle_mask.trailing_zeros() as usize;
+        while y > c {
             *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) = true;
             y -= 1;
             if !*tables.visited.get_unchecked(y).get_unchecked(x) {
+                toggle_wall!(x, y);
                 total += go_right(&mut tables, masks, x, y + 1) as u32;
+                toggle_wall!(x, y);
             }
         }
 
-        let near = tables.obstacles[2].get_unchecked(y) & masks.get_unchecked(x + 63);
-        let far = tables.obstacles[3].get_unchecked(y) & masks.get_unchecked(x - 1);
-        if near | far == 0 {
+        let obstacle_mask = tables.obstacles[1].get_unchecked(y)
+            & (*masks.get_unchecked(x + 63) as u128 | (*masks.get_unchecked(x - 1) as u128) << 64);
+        if obstacle_mask == 0 {
             break;
         }
-        let c_lo = near.trailing_zeros();
-        let c_hi = far.trailing_zeros() + 64;
-        let c = if c_lo == 64 { c_hi } else { c_lo };
-        x = c as usize + 1;
+        let c = obstacle_mask.trailing_zeros() as usize;
+        while x < c {
+            *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) = true;
+            x += 1;
+            if !*tables.visited.get_unchecked(y).get_unchecked(x) {
+                toggle_wall!(x, y);
+                total += go_down(&mut tables, masks, x - 1, y) as u32;
+                toggle_wall!(x, y);
+            }
+        }
 
-        let near = tables.obstacles[4].get_unchecked(x) & masks.get_unchecked(y + 63);
-        let far = tables.obstacles[5].get_unchecked(x) & masks.get_unchecked(y - 1);
-        if near | far == 0 {
+        let obstacle_mask = tables.obstacles[2].get_unchecked(x)
+            & (*masks.get_unchecked(y + 63) as u128 | (*masks.get_unchecked(y - 1) as u128) << 64);
+        if obstacle_mask == 0 {
             break;
         }
-        let c_lo = near.trailing_zeros();
-        let c_hi = far.trailing_zeros() + 64;
-        let c = if c_lo == 64 { c_hi } else { c_lo };
-        y = c as usize + 1;
+        let c = obstacle_mask.trailing_zeros() as usize;
+        while y < c {
+            *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) = true;
+            y += 1;
+            if !*tables.visited.get_unchecked(y).get_unchecked(x) {
+                toggle_wall!(x, y);
+                total += go_left(&mut tables, masks, x, y - 1) as u32;
+                toggle_wall!(x, y);
+            }
+        }
 
-        let near = tables.obstacles[6].get_unchecked(y) & masks.get_unchecked(192 - x);
-        let far = tables.obstacles[7].get_unchecked(y) & masks.get_unchecked(128 - x);
-        if near | far == 0 {
+        let obstacle_mask = tables.obstacles[1].get_unchecked(y)
+            & (*masks.get_unchecked(x + 63) as u128 | (*masks.get_unchecked(x - 1) as u128) << 64);
+        if obstacle_mask == 0 {
             break;
         }
-        let c_lo = near.trailing_zeros();
-        let c_hi = far.trailing_zeros() + 64;
-        let c = if c_lo == 64 { c_hi } else { c_lo };
-        x = 128 - c as usize;
+        let c = obstacle_mask.trailing_zeros() as usize;
+        while x > c {
+            *tables.visited.get_unchecked_mut(y).get_unchecked_mut(x) = true;
+            x -= 1;
+            if !*tables.visited.get_unchecked(y).get_unchecked(x) {
+                toggle_wall!(x, y);
+                total += go_up(&mut tables, masks, x + 1, y) as u32;
+                toggle_wall!(x, y);
+            }
+        }
     }
 
     0
