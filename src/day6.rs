@@ -1,4 +1,4 @@
-use std::hint::black_box;
+use std::hint::{black_box, unreachable_unchecked};
 
 use super::*;
 
@@ -141,48 +141,49 @@ unsafe fn inner2(s: &[u8]) -> u32 {
     }
 
     let mut tables = Tables {
-        obstacles: [
-            std::array::from_fn(|i| {
+        obstacles: std::array::from_fn(|i| match i {
+            0 => std::array::from_fn(|i| {
                 (0..64).fold(0, |acc, j| {
                     acc | ((*s.get_unchecked((i) + (127 - j) * 131) == b'#') as u64) << j
                 })
             }),
-            std::array::from_fn(|i| {
+            1 => std::array::from_fn(|i| {
                 (0..64).fold(0, |acc, j| {
                     acc | ((*s.get_unchecked((i) + (63 - j) * 131) == b'#') as u64) << j
                 })
             }),
-            std::array::from_fn(|i| {
+            2 => std::array::from_fn(|i| {
                 (0..64).fold(0, |acc, j| {
                     acc | ((*s.get_unchecked((2 + j) + (i) * 131) == b'#') as u64) << j
                 })
             }),
-            std::array::from_fn(|i| {
+            3 => std::array::from_fn(|i| {
                 (0..64).fold(0, |acc, j| {
                     acc | ((*s.get_unchecked((66 + j) + (i) * 131) == b'#') as u64) << j
                 })
             }),
-            std::array::from_fn(|i| {
+            4 => std::array::from_fn(|i| {
                 (0..64).fold(0, |acc, j| {
                     acc | ((*s.get_unchecked((i) + (2 + j) * 131) == b'#') as u64) << j
                 })
             }),
-            std::array::from_fn(|i| {
+            5 => std::array::from_fn(|i| {
                 (0..64).fold(0, |acc, j| {
                     acc | ((*s.get_unchecked((i) + (66 + j) * 131) == b'#') as u64) << j
                 })
             }),
-            std::array::from_fn(|i| {
+            6 => std::array::from_fn(|i| {
                 (0..64).fold(0, |acc, j| {
                     acc | ((*s.get_unchecked((127 - j) + (i) * 131) == b'#') as u64) << j
                 })
             }),
-            std::array::from_fn(|i| {
+            7 => std::array::from_fn(|i| {
                 (0..64).fold(0, |acc, j| {
                     acc | ((*s.get_unchecked((63 - j) + (i) * 131) == b'#') as u64) << j
                 })
             }),
-        ],
+            _ => unreachable_unchecked(),
+        }),
         visited: [[false; 130]; 130],
     };
 
