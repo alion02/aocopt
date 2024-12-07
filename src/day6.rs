@@ -146,29 +146,6 @@ unsafe fn inner2(s: &[u8]) -> u32 {
     }
 
     let mut tables = Tables {
-        // obstacles: std::array::from_fn(|i| match i {
-        //     0 => std::array::from_fn(|i| {
-        //         (0..128).fold(0, |acc, j| {
-        //             acc | ((*s.get_unchecked((i) + (127 - j) * 131) == b'#') as u128) << j
-        //         })
-        //     }),
-        //     1 => std::array::from_fn(|i| {
-        //         (0..128).fold(0, |acc, j| {
-        //             acc | ((*s.get_unchecked((2 + j) + (i) * 131) == b'#') as u128) << j
-        //         })
-        //     }),
-        //     2 => std::array::from_fn(|i| {
-        //         (0..128).fold(0, |acc, j| {
-        //             acc | ((*s.get_unchecked((i) + (2 + j) * 131) == b'#') as u128) << j
-        //         })
-        //     }),
-        //     3 => std::array::from_fn(|i| {
-        //         (0..128).fold(0, |acc, j| {
-        //             acc | ((*s.get_unchecked((127 - j) + (i) * 131) == b'#') as u128) << j
-        //         })
-        //     }),
-        //     _ => unreachable_unchecked(),
-        // }),
         obstacles: [[0; 130]; 4],
         visited: [[0; 130]; 130],
     };
