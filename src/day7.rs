@@ -11,6 +11,16 @@ use super::*;
 unsafe fn process<const P2: bool>(s: &[u8]) -> u64 {
     #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
     unsafe fn f<const P2: bool>(target: u64, list: *mut u16, list_end: *mut u16) -> bool {
+        const LOG_TABLE: [u32; 1000] = {
+            let mut table = [0; 1000];
+            let mut i = 1;
+            while i < 1000 {
+                table[i] = 10u32.pow(i.ilog10() + 1);
+                i += 1;
+            }
+            table
+        };
+
         let curr = *list as u64;
         if list == list_end {
             return target == curr;
@@ -18,7 +28,7 @@ unsafe fn process<const P2: bool>(s: &[u8]) -> u64 {
         let next = list.sub(1);
         let nzcurr = NonZeroU64::new_unchecked(curr);
         P2 && {
-            let divisor = NonZeroU64::new_unchecked(10u32.pow(nzcurr.ilog10() + 1) as u64);
+            let divisor = NonZeroU64::new_unchecked(*LOG_TABLE.get_unchecked(curr as usize) as u64);
             target % divisor == curr && f::<P2>(target / divisor, next, list_end)
         } || target % nzcurr == 0 && f::<P2>(target / nzcurr, next, list_end)
             || target > curr && f::<P2>(target - curr, next, list_end)
