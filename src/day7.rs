@@ -7,11 +7,11 @@ use super::*;
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn process<const P2: bool>(s: &[u8]) -> u64 {
-    static LOG_TABLE: [u32; 1000] = {
+    static LOG_TABLE: [u64; 1000] = {
         let mut table = [0; 1000];
         let mut i = 1;
         while i < 1000 {
-            table[i] = 10u32.pow(i.ilog10() + 1);
+            table[i] = 10u64.pow(i.ilog10() + 1);
             i += 1;
         }
         table
@@ -119,10 +119,9 @@ unsafe fn process<const P2: bool>(s: &[u8]) -> u64 {
                 "pop {target}",
                 "movzx {curr:e}, word ptr[{list} + {i} + 2]",
             "22:",
-                "mov {t:e}, dword ptr[{table} + {curr} * 4]",
                 "mov rax, {target}",
                 "xor edx, edx",
-                "div {t}",
+                "div qword ptr[{table} + {curr} * 8]",
                 "cmp rdx, {curr}",
                 "jne 26f",
                 "push {target}",
@@ -151,7 +150,6 @@ unsafe fn process<const P2: bool>(s: &[u8]) -> u64 {
                 curr = out(reg) _,
                 target = inout(reg) target => _,
                 table = in(reg) &LOG_TABLE,
-                t = out(reg) _,
                 total = inout(reg) total,
                 orig_target = in(reg) target,
                 rsp = out(reg) _,
