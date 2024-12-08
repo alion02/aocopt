@@ -1,9 +1,70 @@
 use super::*;
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
+unsafe fn process<const P2: bool>(s: &[u8]) -> u32 {
+    let r = s.as_ptr_range();
+    let mut ptr = r.start;
+    let mut cy = 0usize;
+
+    let mut antinodes = [0u64; 150];
+    let mut frequencies = [[[0u8; 2]; 4]; 75];
+
+    loop {
+        let c1 = ptr.cast::<u8x32>().read_unaligned();
+        let c2 = ptr.add(18).cast::<u8x32>().read_unaligned();
+        let m1 = c1.simd_ge(Simd::splat(b'0')).to_bitmask();
+        let m2 = c2.simd_ge(Simd::splat(b'0')).to_bitmask();
+        let mut mask = m1 | m2 << 18;
+        while mask != 0 {
+            let cx = mask.trailing_zeros() as usize;
+            let bucket = frequencies
+                .get_unchecked_mut((ptr.add(cx).read() as usize).unchecked_sub(b'0' as usize));
+            let count_bucket = bucket.get_unchecked_mut(3).get_unchecked_mut(0);
+            let count = *count_bucket as usize;
+            *count_bucket += 1;
+            let [nx, ny] = bucket.get_unchecked_mut(count);
+            *nx = cx as u8;
+            *ny = cy as u8;
+            for i in 0..count {
+                let [sx, sy] = *bucket.get_unchecked(i);
+                let sx = sx as usize;
+                let sy = sy as usize;
+                let dx = cx as isize - sx as isize;
+                let dy = cy - sy;
+                let sbit = 1 << sx;
+                let cbit = 1 << cx;
+                if dx > 0 {
+                    let dx = dx as usize;
+                    *antinodes.get_unchecked_mut(50 + cy + dy) |= cbit << dx;
+                    *antinodes.get_unchecked_mut(50 + sy - dy) |= sbit >> dx;
+                } else {
+                    let dx = -dx as usize;
+                    *antinodes.get_unchecked_mut(50 + cy + dy) |= cbit >> dx;
+                    *antinodes.get_unchecked_mut(50 + sy - dy) |= sbit << dx;
+                }
+            }
+
+            mask &= mask - 1;
+        }
+
+        ptr = ptr.add(51);
+        cy += 1;
+        if ptr == r.end {
+            break;
+        }
+    }
+
+    antinodes
+        .get_unchecked(50..100)
+        .iter()
+        .map(|row| (*row & 0x3FFFFFFFFFFFF).count_ones())
+        .sum()
+}
+
+#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 #[allow(unreachable_code)]
 unsafe fn inner1(s: &[u8]) -> u32 {
-    0
+    process::<false>(s)
 }
 
 pub fn part1(s: &str) -> impl Display {
@@ -12,7 +73,7 @@ pub fn part1(s: &str) -> impl Display {
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn inner2(s: &[u8]) -> u32 {
-    0
+    process::<true>(s)
 }
 
 pub fn part2(s: &str) -> impl Display {
