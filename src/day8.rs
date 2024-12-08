@@ -1,6 +1,5 @@
 use super::*;
 
-#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn process<const P2: bool>(s: &[u8]) -> u32 {
     let r = s.as_ptr_range();
     let mut ptr = r.start;
@@ -61,8 +60,6 @@ unsafe fn process<const P2: bool>(s: &[u8]) -> u32 {
         .sum()
 }
 
-#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-#[allow(unreachable_code)]
 unsafe fn inner1(s: &[u8]) -> u32 {
     process::<false>(s)
 }
@@ -71,7 +68,6 @@ pub fn part1(s: &str) -> impl Display {
     unsafe { inner1(s.as_bytes()) }
 }
 
-#[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn inner2(s: &[u8]) -> u32 {
     process::<true>(s)
 }
