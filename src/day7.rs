@@ -9,18 +9,18 @@ use super::*;
 
 #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
 unsafe fn process<const P2: bool>(s: &[u8]) -> u64 {
+    static LOG_TABLE: [u32; 1000] = {
+        let mut table = [0; 1000];
+        let mut i = 1;
+        while i < 1000 {
+            table[i] = 10u32.pow(i.ilog10() + 1);
+            i += 1;
+        }
+        table
+    };
+
     #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
     unsafe fn f<const P2: bool>(target: u64, list: *mut u16, list_end: *mut u16) -> bool {
-        const LOG_TABLE: [u32; 1000] = {
-            let mut table = [0; 1000];
-            let mut i = 1;
-            while i < 1000 {
-                table[i] = 10u32.pow(i.ilog10() + 1);
-                i += 1;
-            }
-            table
-        };
-
         let curr = *list as u64;
         if list == list_end {
             return target == curr;
@@ -119,10 +119,64 @@ unsafe fn process<const P2: bool>(s: &[u8]) -> u64 {
                 rsp = out(reg) _,
             );
         } else {
-            //
-            if f::<P2>(target, list, list_end) {
-                total += target;
-            }
+            asm!(
+                "mov {rsp}, rsp",
+                "call 23f",
+                "jmp 25f",
+            "23:",
+                "movzx {curr:e}, word ptr[{list}]",
+                "cmp {list}, {end}",
+                "je 20f",
+                "add {list}, -2",
+                "mov rax, {target}",
+                "xor edx, edx",
+                "div {curr}",
+                "test rdx, rdx",
+                "jnz 22f",
+                "push {target}",
+                "mov {target}, rax",
+                "call 23b",
+                "pop {target}",
+                "movzx {curr:e}, word ptr[{list} + 2]",
+            "22:",
+                "mov {t:e}, dword ptr[{table} + {curr} * 4]",
+                "mov rax, {target}",
+                "xor edx, edx",
+                "div {t}",
+                "cmp rdx, {curr}",
+                "jne 26f",
+                "push {target}",
+                "mov {target}, rax",
+                "call 23b",
+                "pop {target}",
+                "movzx {curr:e}, word ptr[{list} + 2]",
+            "26:",
+                "sub {target}, {curr}",
+                "jbe 24f",
+                "call 23b",
+            "24:",
+                "add {list}, 2",
+                "ret",
+            "20:",
+                "cmp {target}, {curr}",
+                "je 21f",
+                "ret",
+            "21:",
+                "add {total}, {orig_target}",
+            "25:",
+                "mov rsp, {rsp}",
+                out("rax") _,
+                out("rdx") _,
+                list = inout(reg) list => _,
+                curr = out(reg) _,
+                target = inout(reg) target => _,
+                end = in(reg) list_end,
+                table = in(reg) &LOG_TABLE,
+                t = out(reg) _,
+                total = inout(reg) total,
+                orig_target = in(reg) target,
+                rsp = out(reg) _,
+            );
         }
 
         if ptr == r.end {
