@@ -73,30 +73,61 @@ unsafe fn process<const P2: bool>(s: &[u8]) -> u64 {
             }
         }
 
-        if f::<P2>(target, list, list_end) {
-            total += target;
+        if !P2 {
+            asm!(
+                "mov {rsp}, rsp",
+                "call 23f",
+                "jmp 25f",
+            "23:",
+                "movzx {curr:e}, word ptr[{list}]",
+                "cmp {list}, {end}",
+                "je 20f",
+                "add {list}, -2",
+                "mov rax, {target}",
+                "xor edx, edx",
+                "div {curr}",
+                "test rdx, rdx",
+                "jnz 22f",
+                "push {target}",
+                "mov {target}, rax",
+                "call 23b",
+                "pop {target}",
+                "movzx {curr:e}, word ptr[{list} + 2]",
+            "22:",
+                "sub {target}, {curr}",
+                "jbe 24f",
+                "call 23b",
+            "24:",
+                "add {list}, 2",
+                "ret",
+            "20:",
+                "cmp {target}, {curr}",
+                "je 21f",
+                "ret",
+            "21:",
+                "add {total}, {orig_target}",
+            "25:",
+                "mov rsp, {rsp}",
+                out("rax") _,
+                out("rdx") _,
+                list = inout(reg) list => _,
+                curr = out(reg) _,
+                target = inout(reg) target => _,
+                end = in(reg) list_end,
+                total = inout(reg) total,
+                orig_target = in(reg) target,
+                rsp = out(reg) _,
+            );
+        } else {
+            //
+            if f::<P2>(target, list, list_end) {
+                total += target;
+            }
         }
 
         if ptr == r.end {
             break;
         }
-
-        // asm!(
-        // "20:",
-        //     "movzx cx, [{list}]",
-        //     "mov rbx, rax",
-        //     "div rcx",
-        //     "test rdx, rdx",
-        //     "jnz 21f",
-        //     "",
-        //     "/*{list} {end}*/",
-        //     inout("rax") target => _,
-        //     out("rdx") _,
-        //     out("rcx") _,
-        //     out("rbx") _,
-        //     list = inout(reg) list => _,
-        //     end = in(reg) list_end,
-        // );
     }
 
     total
