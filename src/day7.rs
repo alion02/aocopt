@@ -1,5 +1,3 @@
-use std::num::NonZeroU64;
-
 use super::*;
 
 // list len 3-12
@@ -18,21 +16,6 @@ unsafe fn process<const P2: bool>(s: &[u8]) -> u64 {
         }
         table
     };
-
-    #[target_feature(enable = "avx2,bmi1,bmi2,cmpxchg16b,lzcnt,movbe,popcnt")]
-    unsafe fn f<const P2: bool>(target: u64, list: *mut u16, list_end: *mut u16) -> bool {
-        let curr = *list as u64;
-        if list == list_end {
-            return target == curr;
-        }
-        let next = list.sub(1);
-        let nzcurr = NonZeroU64::new_unchecked(curr);
-        P2 && {
-            let divisor = NonZeroU64::new_unchecked(*LOG_TABLE.get_unchecked(curr as usize) as u64);
-            target % divisor == curr && f::<P2>(target / divisor, next, list_end)
-        } || target % nzcurr == 0 && f::<P2>(target / nzcurr, next, list_end)
-            || target > curr && f::<P2>(target - curr, next, list_end)
-    }
 
     let r = s.as_ptr_range();
     let mut ptr = r.start;
