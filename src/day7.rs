@@ -1,5 +1,3 @@
-use std::arch::x86_64::{_mm_hadd_epi16, _mm_packus_epi32};
-
 use super::*;
 
 // list len 3-12
