@@ -30,10 +30,10 @@ unsafe fn process<const P2: bool>(s: &[u8]) -> u32 {
     frequencies.fill(Default::default());
 
     loop {
-        let c1 = ptr.cast::<u8x32>().read_unaligned();
-        let c2 = ptr.add(18).cast::<u8x32>().read_unaligned();
-        let m1 = c1.simd_ge(Simd::splat(b'0')).to_bitmask();
-        let m2 = c2.simd_ge(Simd::splat(b'0')).to_bitmask();
+        let c1 = ptr.cast::<u8x32>().read_unaligned() + Simd::splat(127 - b'.');
+        let c2 = ptr.add(18).cast::<u8x32>().read_unaligned() + Simd::splat(127 - b'.');
+        let m1 = c1.simd_ge(Simd::splat(128)).to_bitmask();
+        let m2 = c2.simd_ge(Simd::splat(128)).to_bitmask();
         let mut mask = m1 | m2 << 18;
         if P2 {
             *antinodes.get_unchecked_mut(50 + cy) |= mask;
