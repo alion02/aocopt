@@ -16,22 +16,20 @@ macro_rules! black_box {
     }};
 }
 
-unsafe fn process<const P2: bool>(s: &[u8]) -> u32 {
+unsafe fn process(s: &[u8]) -> u32 {
     let r = s.as_ptr_range();
     let mut ptr = r.start;
     let mut cy = 0usize;
 
     #[repr(C, align(32))]
     struct Tables {
-        _padding1: [u8; 16],
-        antinodes: [u64; 150],
+        antinodes: [u64; 50],
         _padding2: [u8; 16],
         frequencies: [[[u8; 2]; 4]; 75],
     }
 
     static mut TABLES: Tables = Tables {
-        _padding1: [0; 16],
-        antinodes: [0; 150],
+        antinodes: [0; 50],
         _padding2: [0; 16],
         frequencies: [[[0; 2]; 4]; 75],
     };
@@ -42,7 +40,7 @@ unsafe fn process<const P2: bool>(s: &[u8]) -> u32 {
         ..
     } = &mut TABLES;
 
-    antinodes[50..100].fill(0);
+    antinodes.fill(0);
     frequencies.fill(Default::default());
 
     loop {
@@ -51,9 +49,7 @@ unsafe fn process<const P2: bool>(s: &[u8]) -> u32 {
         let m1 = c1.simd_ge(Simd::splat(128)).to_bitmask();
         let m2 = c2.simd_ge(Simd::splat(128)).to_bitmask();
         let mut mask = m1 | m2 << 18;
-        if P2 {
-            *antinodes.get_unchecked_mut(50 + cy) |= mask;
-        }
+        *antinodes.get_unchecked_mut(cy) |= mask;
         while mask != 0 {
             let cx = mask.trailing_zeros() as usize;
             let bucket = frequencies
@@ -74,45 +70,35 @@ unsafe fn process<const P2: bool>(s: &[u8]) -> u32 {
                 let cbit = 1 << cx;
                 if dx > 0 {
                     let dx = dx as usize;
-                    if P2 {
-                        let mut bit = cbit << dx;
-                        let mut idx = cy + dy;
-                        while bit < 1 << 50 && idx < 50 {
-                            *antinodes.get_unchecked_mut(50 + idx) |= bit;
-                            bit <<= dx;
-                            idx += dy;
-                        }
-                        let mut bit = sbit >> dx;
-                        let mut idx = sy as isize - dy as isize;
-                        while bit > 0 && idx >= 0 {
-                            *antinodes.get_unchecked_mut(50 + idx as usize) |= bit;
-                            bit >>= dx;
-                            idx -= dy as isize;
-                        }
-                    } else {
-                        *antinodes.get_unchecked_mut(50 + cy + dy) |= cbit << dx;
-                        *antinodes.get_unchecked_mut(50 + sy - dy) |= sbit >> dx;
+                    let mut bit = cbit << dx;
+                    let mut idx = cy + dy;
+                    while bit < 1 << 50 && idx < 50 {
+                        *antinodes.get_unchecked_mut(idx) |= bit;
+                        bit <<= dx;
+                        idx += dy;
+                    }
+                    let mut bit = sbit >> dx;
+                    let mut idx = sy as isize - dy as isize;
+                    while bit > 0 && idx >= 0 {
+                        *antinodes.get_unchecked_mut(idx as usize) |= bit;
+                        bit >>= dx;
+                        idx -= dy as isize;
                     }
                 } else {
                     let dx = -dx as usize;
-                    if P2 {
-                        let mut bit = cbit >> dx;
-                        let mut idx = cy + dy;
-                        while bit > 0 && idx < 50 {
-                            *antinodes.get_unchecked_mut(50 + idx) |= bit;
-                            bit >>= dx;
-                            idx += dy;
-                        }
-                        let mut bit = sbit << dx;
-                        let mut idx = sy as isize - dy as isize;
-                        while bit < 1 << 50 && idx >= 0 {
-                            *antinodes.get_unchecked_mut(50 + idx as usize) |= bit;
-                            bit <<= dx;
-                            idx -= dy as isize;
-                        }
-                    } else {
-                        *antinodes.get_unchecked_mut(50 + cy + dy) |= cbit >> dx;
-                        *antinodes.get_unchecked_mut(50 + sy - dy) |= sbit << dx;
+                    let mut bit = cbit >> dx;
+                    let mut idx = cy + dy;
+                    while bit > 0 && idx < 50 {
+                        *antinodes.get_unchecked_mut(idx) |= bit;
+                        bit >>= dx;
+                        idx += dy;
+                    }
+                    let mut bit = sbit << dx;
+                    let mut idx = sy as isize - dy as isize;
+                    while bit < 1 << 50 && idx >= 0 {
+                        *antinodes.get_unchecked_mut(idx as usize) |= bit;
+                        bit <<= dx;
+                        idx -= dy as isize;
                     }
                 }
             }
@@ -127,11 +113,7 @@ unsafe fn process<const P2: bool>(s: &[u8]) -> u32 {
         }
     }
 
-    antinodes
-        .get_unchecked(50..100)
-        .iter()
-        .map(|&row| if P2 { row } else { row & 0x3FFFFFFFFFFFF }.count_ones())
-        .sum()
+    antinodes.iter().map(|&row| row.count_ones()).sum()
 }
 
 unsafe fn inner1(s: &[u8]) -> u32 {
@@ -240,7 +222,7 @@ pub fn part1(s: &str) -> impl Display {
 }
 
 unsafe fn inner2(s: &[u8]) -> u32 {
-    process::<true>(s)
+    process(s)
 }
 
 pub fn part2(s: &str) -> impl Display {
