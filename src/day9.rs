@@ -11,7 +11,7 @@ unsafe fn inner1(s: &[u8]) -> usize {
 
     let mut checksum = 0;
     let mut left = 0;
-    let mut right = s.len();
+    let mut right = s.len() / 2;
     let mut disk_pos = 0;
     let mut rem_dst = 0;
     let mut rem_src = 0;
@@ -20,31 +20,31 @@ unsafe fn inner1(s: &[u8]) -> usize {
             if left == right {
                 break 'outer;
             }
-            let mut file = len!(left);
+            let mut file = len!(left * 2);
             assert_unchecked(file > 0);
             loop {
-                checksum += left / 2 * disk_pos;
+                checksum += left * disk_pos;
                 disk_pos += 1;
                 file -= 1;
                 if file == 0 {
                     break;
                 }
             }
-            rem_dst = len!(left + 1);
-            left += 2;
+            rem_dst = len!(left * 2 + 1);
+            left += 1;
         }
 
         if rem_src == 0 {
             if left == right {
                 break 'outer;
             }
-            right -= 2;
-            rem_src = len!(right);
+            right -= 1;
+            rem_src = len!(right * 2);
         }
 
         assert_unchecked(rem_src > 0);
         while rem_dst > 0 && rem_src > 0 {
-            checksum += right / 2 * disk_pos;
+            checksum += right * disk_pos;
             disk_pos += 1;
             rem_dst -= 1;
             rem_src -= 1;
@@ -52,7 +52,7 @@ unsafe fn inner1(s: &[u8]) -> usize {
     }
 
     while rem_src > 0 {
-        checksum += right / 2 * disk_pos;
+        checksum += right * disk_pos;
         disk_pos += 1;
         rem_src -= 1;
     }
