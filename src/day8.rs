@@ -5,8 +5,29 @@ unsafe fn process<const P2: bool>(s: &[u8]) -> u32 {
     let mut ptr = r.start;
     let mut cy = 0usize;
 
-    let mut antinodes = [0u64; 150];
-    let mut frequencies = [[[0u8; 2]; 4]; 75];
+    #[repr(C, align(32))]
+    struct Tables {
+        _padding1: [u8; 16],
+        antinodes: [u64; 150],
+        _padding2: [u8; 16],
+        frequencies: [[[u8; 2]; 4]; 75],
+    }
+
+    static mut TABLES: Tables = Tables {
+        _padding1: [0; 16],
+        antinodes: [0; 150],
+        _padding2: [0; 16],
+        frequencies: [[[0; 2]; 4]; 75],
+    };
+
+    let Tables {
+        antinodes,
+        frequencies,
+        ..
+    } = &mut TABLES;
+
+    antinodes[50..100].fill(0);
+    frequencies.fill(Default::default());
 
     loop {
         let c1 = ptr.cast::<u8x32>().read_unaligned();
