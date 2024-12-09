@@ -114,7 +114,7 @@ unsafe fn process<const P2: bool>(s: &[u8]) -> u32 {
     antinodes
         .get_unchecked(50..100)
         .iter()
-        .map(|row| (*row & 0x3FFFFFFFFFFFF).count_ones())
+        .map(|&row| if P2 { row } else { row & 0x3FFFFFFFFFFFF }.count_ones())
         .sum()
 }
 
