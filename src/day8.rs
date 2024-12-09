@@ -1,4 +1,6 @@
 #![allow(clippy::pointers_in_nomem_asm_block)]
+use std::mem::offset_of;
+
 use super::*;
 
 // perhaps for later use
@@ -133,7 +135,104 @@ unsafe fn process<const P2: bool>(s: &[u8]) -> u32 {
 }
 
 unsafe fn inner1(s: &[u8]) -> u32 {
-    process::<false>(s)
+    let r = s.as_ptr_range();
+
+    #[repr(C, align(32))]
+    struct Tables {
+        _padding1: [u8; 16],
+        antinodes: [u64; 150],
+        _padding2: [u8; 16],
+        frequencies: [[[u8; 2]; 4]; 75],
+    }
+
+    static mut TABLES: Tables = Tables {
+        _padding1: [0; 16],
+        antinodes: [0; 150],
+        _padding2: [0; 16],
+        frequencies: [[[0; 2]; 4]; 75],
+    };
+
+    let tables = &mut TABLES;
+
+    tables.antinodes[50..100].fill(0);
+    tables.frequencies.fill([[255; 2]; 4]);
+
+    asm!(
+    "21:",
+        "vpaddb {y1}, {offset}, ymmword ptr[{ptr}]",
+        "vpaddb {y2}, {offset}, ymmword ptr[{ptr} + 18]",
+        "vpmovmskb {r1:e}, {y1}",
+        "vpmovmskb {r2:e}, {y2}",
+        "shl {r2}, 18",
+        "or {r1}, {r2}",
+        "jz 20f",
+    "23:",
+        "tzcnt {cx}, {r1}",
+        "movzx {r2:e}, byte ptr[{ptr} + {cx}]",
+        "lea {r2}, [{table} + {r2} * 8 + 432]",
+        "movsx {count:e}, byte ptr[{r2} + 7]",
+        "inc {count:e}",
+        "mov byte ptr[{r2} + 7], {count:l}",
+        "mov byte ptr[{r2} + {count} * 2], {cx:l}",
+        "mov byte ptr[{r2} + {count} * 2 + 1], {cy:l}",
+        "jz 22f",
+        "shlx {cbit}, {one:r}, {cx}",
+    "26:",
+        "movzx {sx:e}, byte ptr[{r2} + {count} * 2 - 2]",
+        "movzx {sy:e}, byte ptr[{r2} + {count} * 2 - 1]",
+        "shlx {sbit}, {one:r}, {sx}",
+        "mov {dy:e}, {cy:e}",
+        "sub {dy}, {sy}",
+        "mov {dx:e}, {cx:e}",
+        "sub {sy:e}, {dy:e}",
+        "sub {dx}, {sx}",
+        "lea {sx}, [{cy} + {dy}]",
+        "jbe 24f",
+        "shlx {dy}, {cbit}, {dx}",
+        "shrx {sbit}, {sbit}, {dx}",
+        "jmp 25f",
+    "24:",
+        "neg {dx}",
+        "shrx {dy}, {cbit}, {dx}",
+        "shlx {sbit}, {sbit}, {dx}",
+    "25:",
+        "or qword ptr[{table} + {sx} * 8], {dy}",
+        "or qword ptr[{table} + {sy} * 8], {sbit}",
+        "dec {count:e}",
+        "jnz 26b",
+    "22:",
+        "blsr {r1}, {r1}",
+        "jnz 23b",
+    "20:",
+        "add {ptr}, -51",
+        "dec {cy:e}",
+        "jns 21b",
+        y1 = out(ymm_reg) _,
+        y2 = out(ymm_reg) _,
+        offset = in(ymm_reg) u8x32::splat(127 - b'.'),
+        ptr = inout(reg) r.end.sub(51) => _,
+        r1 = out(reg) _,
+        r2 = out(reg) _,
+        count = out(reg) _,
+        cx = out(reg) _,
+        cy = inout(reg) 49usize => _,
+        sx = out(reg) _,
+        sy = out(reg) _,
+        dx = out(reg) _,
+        dy = out(reg) _,
+        cbit = out(reg) _,
+        sbit = out(reg) _,
+        table = in(reg) (tables as *mut Tables).byte_add(offset_of!(Tables, antinodes) + size_of::<u64>() * 50),
+        one = in(reg) 1,
+        options(nostack),
+    );
+
+    tables
+        .antinodes
+        .get_unchecked(50..100)
+        .iter()
+        .map(|&row| (row & 0x3FFFFFFFFFFFF).count_ones())
+        .sum()
 }
 
 pub fn part1(s: &str) -> impl Display {
