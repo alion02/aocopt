@@ -5,8 +5,8 @@ unsafe fn process<const P2: bool>(s: &[u8]) -> u32 {
     let mut ptr = r.start;
     let mut cy = 0usize;
 
-    let mut antinodes = vec![0u64; 150];
-    let mut frequencies = vec![[[0u8; 2]; 4]; 75];
+    let mut antinodes = [0u64; 150];
+    let mut frequencies = [[[0u8; 2]; 4]; 75];
 
     loop {
         let c1 = ptr.cast::<u8x32>().read_unaligned();
