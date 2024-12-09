@@ -1,35 +1,34 @@
-use std::hint::assert_unchecked;
-
 use super::*;
 
 unsafe fn inner1(s: &[u8]) -> usize {
-    macro_rules! len {
-        ($i:expr) => {
-            *s.get_unchecked($i) as usize - b'0' as usize
-        };
-    }
-
     let mut checksum = 0;
     let mut left = 0;
     let mut right = s.len() / 2;
     let mut disk_pos = 0;
     let mut rem_dst = 0;
     let mut rem_src = 0;
+
+    macro_rules! len {
+        ($i:expr) => {
+            *s.get_unchecked($i) as usize - b'0' as usize
+        };
+    }
+
+    macro_rules! insert_file {
+        ($len:expr, $id:expr) => {
+            let len = $len;
+            checksum += (disk_pos * 2 + len - 1) * $id * len / 2;
+            disk_pos += len;
+        };
+    }
+
     'outer: loop {
         while rem_dst == 0 {
             if left == right {
                 break 'outer;
             }
-            let mut file = len!(left * 2);
-            assert_unchecked(file > 0);
-            loop {
-                checksum += left * disk_pos;
-                disk_pos += 1;
-                file -= 1;
-                if file == 0 {
-                    break;
-                }
-            }
+
+            insert_file!(len!(left * 2), left);
             rem_dst = len!(left * 2 + 1);
             left += 1;
         }
@@ -38,24 +37,18 @@ unsafe fn inner1(s: &[u8]) -> usize {
             if left == right {
                 break 'outer;
             }
+
             right -= 1;
             rem_src = len!(right * 2);
         }
 
-        assert_unchecked(rem_src > 0);
-        while rem_dst > 0 && rem_src > 0 {
-            checksum += right * disk_pos;
-            disk_pos += 1;
-            rem_dst -= 1;
-            rem_src -= 1;
-        }
+        let len = rem_dst.min(rem_src);
+        insert_file!(len, right);
+        rem_dst -= len;
+        rem_src -= len;
     }
 
-    while rem_src > 0 {
-        checksum += right * disk_pos;
-        disk_pos += 1;
-        rem_src -= 1;
-    }
+    insert_file!(rem_src, left);
 
     checksum
 }
