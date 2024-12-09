@@ -1,77 +1,8 @@
+use std::hint::assert_unchecked;
+
 use super::*;
 
 unsafe fn inner1(s: &[u8]) -> usize {
-    // struct State {
-    //     input: *const u8,
-    //     checksum: usize,
-    //     disk_pos: usize,
-    //     rem_empty: usize,
-    //     rem_file: usize,
-    //     left: usize,
-    //     right: usize,
-    // }
-
-    // impl State {
-    //     unsafe fn len(&self, i: usize) -> usize {
-    //         self.input.add(i).read() as usize - b'0' as usize
-    //     }
-
-    //     unsafe fn nnef(&mut self) {
-    //         self.left += 1;
-    //         self.rem_empty += self.len(self.left);
-    //         if self.rem_empty > 0 {
-    //             self.ynff();
-    //         } else {
-    //             self.nnff();
-    //         }
-    //     }
-
-    //     unsafe fn ynff(&mut self) {
-    //         self.right -= 1;
-    //         self.rem_file += self.len(self.right);
-    //         if self.rem_empty > 0 {
-    //             self.yyfe();
-    //         } else {
-    //             self.ynfe();
-    //         }
-    //     }
-
-    //     unsafe fn nnff(&mut self) {
-    //         self.left += 1;
-    //         let mut file = self.len(self.left);
-    //         while file > 0 {
-    //             self.checksum += self.left / 2 * self.disk_pos;
-    //             self.disk_pos += 1;
-    //             file -= 1;
-    //         }
-    //         self.nnef();
-    //     }
-
-    //     unsafe fn yyfe(&mut self) {
-    //         if self.rem_empty > self.rem_file {
-    //             loop {
-    //                 self.checksum += self.right / 2 * self.disk_pos;
-    //                 self.disk_pos += 1;
-    //                 self.rem_file -= 1;
-    //                 if self.rem_file == 0 {
-    //                     break;
-    //                 }
-    //             }
-    //             self.right -= 1;
-    //             self.ynff();
-    //         } else {
-    //             loop {
-    //                 self.checksum += self.right / 2 * self.disk_pos;
-    //                 self.disk_pos += 1;
-    //                 self.rem_file -= 1;
-    //                 if self.rem_empty == 0 {
-    //                     break;
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-
     macro_rules! len {
         ($i:expr) => {
             *s.get_unchecked($i) as usize - b'0' as usize
@@ -90,16 +21,20 @@ unsafe fn inner1(s: &[u8]) -> usize {
                 break 'outer;
             }
             let mut file = len!(left);
-            while file > 0 {
+            assert_unchecked(file > 0);
+            loop {
                 checksum += left / 2 * disk_pos;
                 disk_pos += 1;
                 file -= 1;
+                if file == 0 {
+                    break;
+                }
             }
             rem_dst = len!(left + 1);
             left += 2;
         }
 
-        while rem_src == 0 {
+        if rem_src == 0 {
             if left == right {
                 break 'outer;
             }
@@ -107,6 +42,7 @@ unsafe fn inner1(s: &[u8]) -> usize {
             rem_src = len!(right);
         }
 
+        assert_unchecked(rem_src > 0);
         while rem_dst > 0 && rem_src > 0 {
             checksum += right / 2 * disk_pos;
             disk_pos += 1;
