@@ -1,5 +1,6 @@
 #![feature(thread_local, portable_simd, core_intrinsics)]
 #![allow(
+    clippy::pointers_in_nomem_asm_block,
     clippy::erasing_op,
     static_mut_refs,
     internal_features,
@@ -8,6 +9,7 @@
     clippy::zero_prefixed_literal
 )]
 
+#[allow(unused)]
 use std::{
     arch::{
         asm,
@@ -18,9 +20,22 @@ use std::{
         },
     },
     fmt::Display,
-    mem::{transmute, MaybeUninit},
+    mem::{offset_of, transmute, MaybeUninit},
     simd::prelude::*,
 };
+
+#[allow(unused)]
+macro_rules! black_box {
+    ($thing:expr) => {{
+        let mut thing = $thing;
+        asm!(
+            "/*{t}*/",
+            t = inout(reg) thing,
+            options(pure, nomem, preserves_flags, nostack)
+        );
+        thing
+    }};
+}
 
 #[macro_use]
 extern crate aoc_runner_derive;
@@ -34,5 +49,6 @@ pub mod day5;
 pub mod day6;
 pub mod day7;
 pub mod day8;
+pub mod day9;
 
 aoc_lib! { year = 2024 }

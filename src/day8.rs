@@ -1,20 +1,4 @@
-#![allow(clippy::pointers_in_nomem_asm_block)]
-use std::mem::offset_of;
-
 use super::*;
-
-// perhaps for later use
-macro_rules! black_box {
-    ($thing:expr) => {{
-        let mut thing = $thing;
-        asm!(
-            "/*{t}*/",
-            t = inout(reg) thing,
-            options(pure, nomem, preserves_flags, nostack)
-        );
-        thing
-    }};
-}
 
 unsafe fn process(s: &[u8]) -> u32 {
     let r = s.as_ptr_range();
