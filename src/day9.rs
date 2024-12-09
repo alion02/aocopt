@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use super::*;
 
 unsafe fn inner1(s: &[u8]) -> usize {
@@ -23,7 +25,7 @@ unsafe fn inner1(s: &[u8]) -> usize {
     }
 
     'outer: loop {
-        while rem_dst == 0 {
+        loop {
             if left == right {
                 break 'outer;
             }
@@ -31,21 +33,56 @@ unsafe fn inner1(s: &[u8]) -> usize {
             insert_file!(len!(left * 2), left);
             rem_dst = len!(left * 2 + 1);
             left += 1;
-        }
 
-        if rem_src == 0 {
-            if left == right {
-                break 'outer;
+            if rem_dst > 0 {
+                break;
             }
-
-            right -= 1;
-            rem_src = len!(right * 2);
         }
 
-        let len = rem_dst.min(rem_src);
-        insert_file!(len, right);
-        rem_dst -= len;
-        rem_src -= len;
+        if left == right {
+            break 'outer;
+        }
+
+        right -= 1;
+        rem_src = len!(right * 2);
+
+        loop {
+            match rem_dst.cmp(&rem_src) {
+                Ordering::Equal => {
+                    insert_file!(rem_dst, right);
+                    break;
+                }
+                Ordering::Less => {
+                    insert_file!(rem_dst, right);
+                    rem_src -= rem_dst;
+
+                    loop {
+                        if left == right {
+                            break 'outer;
+                        }
+
+                        insert_file!(len!(left * 2), left);
+                        rem_dst = len!(left * 2 + 1);
+                        left += 1;
+
+                        if rem_dst > 0 {
+                            break;
+                        }
+                    }
+                }
+                Ordering::Greater => {
+                    insert_file!(rem_src, right);
+                    rem_dst -= rem_src;
+
+                    if left == right {
+                        break 'outer;
+                    }
+
+                    right -= 1;
+                    rem_src = len!(right * 2);
+                }
+            }
+        }
     }
 
     insert_file!(rem_src, left);
