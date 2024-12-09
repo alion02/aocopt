@@ -85,6 +85,16 @@ unsafe fn inner1(s: &[u8]) -> usize {
         }
     }
 
+    // correct the count
+    // match rem_dst.cmp(&rem_src) {
+    //     Ordering::Equal => {
+    //         rem_dst = 0;
+    //         rem_src = 0;
+    //     }
+    //     Ordering::Less => rem_dst = 0,
+    //     Ordering::Greater => rem_src = 0,
+    // }
+
     insert_file!(rem_src, left);
 
     checksum
