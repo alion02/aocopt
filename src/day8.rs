@@ -1,4 +1,18 @@
+#![allow(clippy::pointers_in_nomem_asm_block)]
 use super::*;
+
+// perhaps for later use
+macro_rules! black_box {
+    ($thing:expr) => {{
+        let mut thing = $thing;
+        asm!(
+            "/*{t}*/",
+            t = inout(reg) thing,
+            options(pure, nomem, preserves_flags, nostack)
+        );
+        thing
+    }};
+}
 
 unsafe fn process<const P2: bool>(s: &[u8]) -> u32 {
     let r = s.as_ptr_range();
@@ -35,10 +49,10 @@ unsafe fn process<const P2: bool>(s: &[u8]) -> u32 {
         let m1 = c1.simd_ge(Simd::splat(128)).to_bitmask();
         let m2 = c2.simd_ge(Simd::splat(128)).to_bitmask();
         let mut mask = m1 | m2 << 18;
-        if P2 {
-            *antinodes.get_unchecked_mut(50 + cy) |= mask;
-        }
         while mask != 0 {
+            if P2 {
+                *antinodes.get_unchecked_mut(50 + cy) |= mask;
+            }
             let cx = mask.trailing_zeros() as usize;
             let bucket = frequencies
                 .get_unchecked_mut((ptr.add(cx).read() as usize).unchecked_sub(b'0' as usize));
