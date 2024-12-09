@@ -123,21 +123,42 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     struct Tables {
         _padding1: [u8; 16],
         antinodes: [u64; 150],
-        _padding2: [u8; 16],
-        frequencies: [[[u8; 2]; 4]; 75],
+        frequencies: [[[u8; 2]; 4]; 76],
     }
 
     static mut TABLES: Tables = Tables {
         _padding1: [0; 16],
         antinodes: [0; 150],
-        _padding2: [0; 16],
-        frequencies: [[[0; 2]; 4]; 75],
+        frequencies: [[[0; 2]; 4]; 76],
     };
 
     let tables = &mut TABLES;
 
     tables.antinodes[50..100].fill(0);
-    tables.frequencies.fill([[255; 2]; 4]);
+
+    asm!(
+        "vmovdqa ymmword ptr[{table}], {ones}",
+        "vmovdqa ymmword ptr[{table} + 32], {ones}",
+        "vmovdqa ymmword ptr[{table} + 64], {ones}",
+        "vmovdqa ymmword ptr[{table} + 96], {ones}",
+        "vmovdqa ymmword ptr[{table} + 128], {ones}",
+        "vmovdqa ymmword ptr[{table} + 160], {ones}",
+        "vmovdqa ymmword ptr[{table} + 192], {ones}",
+        "vmovdqa ymmword ptr[{table} + 224], {ones}",
+        "vmovdqa ymmword ptr[{table} + 256], {ones}",
+        "vmovdqa ymmword ptr[{table} + 288], {ones}",
+        "vmovdqa ymmword ptr[{table} + 320], {ones}",
+        "vmovdqa ymmword ptr[{table} + 352], {ones}",
+        "vmovdqa ymmword ptr[{table} + 384], {ones}",
+        "vmovdqa ymmword ptr[{table} + 416], {ones}",
+        "vmovdqa ymmword ptr[{table} + 448], {ones}",
+        "vmovdqa ymmword ptr[{table} + 480], {ones}",
+        "vmovdqa ymmword ptr[{table} + 512], {ones}",
+        "vmovdqa ymmword ptr[{table} + 544], {ones}",
+        "vmovdqa ymmword ptr[{table} + 576], {ones}",
+        ones = in(ymm_reg) i8x32::splat(-1),
+        table = in(reg) &raw mut tables.frequencies,
+    );
 
     asm!(
     "21:",
@@ -151,7 +172,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     "23:",
         "tzcnt {cx}, {r1}",
         "movzx {r2:e}, byte ptr[{ptr} + {cx}]",
-        "lea {r2}, [{table} + {r2} * 8 + 432]",
+        "lea {r2}, [{table} + {r2} * 8 + 416]",
         "movsx {count:e}, byte ptr[{r2} + 7]",
         "inc {count:e}",
         "mov byte ptr[{r2} + 7], {count:l}",
