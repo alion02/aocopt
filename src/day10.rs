@@ -33,7 +33,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         "call 31f",
     "21:",
         "dec {j:e}",
-        "jnz 20b",
+        "jns 20b",
         "jmp 40f",
     "32:",
         "inc {total:e}",
