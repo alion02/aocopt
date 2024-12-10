@@ -1,5 +1,6 @@
 #![feature(thread_local, portable_simd, core_intrinsics)]
 #![allow(
+    clippy::missing_transmute_annotations,
     clippy::pointers_in_nomem_asm_block,
     clippy::erasing_op,
     static_mut_refs,
@@ -21,6 +22,7 @@ use std::{
         },
     },
     fmt::Display,
+    intrinsics::{likely, unlikely},
     mem::{offset_of, transmute, MaybeUninit},
     simd::prelude::*,
 };
@@ -43,6 +45,7 @@ extern crate aoc_runner_derive;
 extern crate aoc_runner;
 
 pub mod day1;
+pub mod day10;
 pub mod day2;
 pub mod day3;
 pub mod day4;

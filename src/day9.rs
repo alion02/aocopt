@@ -1,5 +1,3 @@
-use std::intrinsics::unlikely;
-
 use super::*;
 
 unsafe fn inner1(s: &[u8]) -> usize {
