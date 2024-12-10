@@ -21,10 +21,13 @@ use std::{
             _mm_testc_si128, _pext_u32,
         },
     },
+    array,
     fmt::Display,
     intrinsics::{likely, unlikely},
     mem::{offset_of, transmute, MaybeUninit},
+    ptr,
     simd::prelude::*,
+    slice,
 };
 
 #[allow(unused)]
