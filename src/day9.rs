@@ -4,89 +4,90 @@ use super::*;
 
 unsafe fn inner1(s: &[u8]) -> usize {
     let mut checksum = 0;
-    let mut left = 0;
-    let mut right = s.len() / 2;
-    let mut disk_pos = 0;
-    let mut rem_dst = 0;
-    let mut rem_src = 0;
 
-    macro_rules! len {
-        ($i:expr) => {
-            *s.get_unchecked($i) as usize - b'0' as usize
-        };
-    }
+    asm!(
+    "20:",
+        "movzx {len:e}, byte ptr[{s} + {left} * 2]",
+        "sub {len:e}, 48",
+        "lea {scratch:e}, [{len} + {disk_pos} * 2 - 1]",
+        "imul {scratch}, {left}",
+        "imul {scratch}, {len}",
+        "add {checksum}, {scratch}",
+        "add {disk_pos:e}, {len:e}",
+        "movzx {rem_dst:e}, byte ptr[{s} + {left} * 2 + 1]",
+        "inc {left:e}",
+        "sub {rem_dst:e}, 48",
+        "jz 20b",
+        "cmp {left:e}, {right:e}",
+        "je 50f",
+    "22:",
+        "dec {right:e}",
+        "movzx {rem_src:e}, byte ptr[{s} + {right} * 2]",
+        "sub {rem_src:e}, 48",
+        "cmp {rem_dst}, {rem_src}",
+        "ja 40f",
+    "21:",
+        "lea {scratch:e}, [{rem_dst} + {disk_pos} * 2 - 1]",
+        "jb 30f",
+        "imul {scratch}, {right}",
+        "imul {scratch}, {rem_dst}",
+        "add {checksum}, {scratch}",
+        "add {disk_pos:e}, {rem_dst:e}",
+        "cmp {left:e}, {right:e}",
+        "jne 20b",
+        "jmp 50f",
+    "30:",
+        "imul {scratch}, {right}",
+        "imul {scratch}, {rem_dst}",
+        "add {checksum}, {scratch}",
+        "add {disk_pos:e}, {rem_dst:e}",
+        "sub {rem_src:e}, {rem_dst:e}",
+    "31:",
+        "cmp {left:e}, {right:e}",
+        "je 60f",
+        "movzx {len:e}, byte ptr[{s} + {left} * 2]",
+        "sub {len:e}, 48",
+        "lea {scratch:e}, [{len} + {disk_pos} * 2 - 1]",
+        "imul {scratch}, {left}",
+        "imul {scratch}, {len}",
+        "add {checksum}, {scratch}",
+        "add {disk_pos:e}, {len:e}",
+        "movzx {rem_dst:e}, byte ptr[{s} + {left} * 2 + 1]",
+        "inc {left:e}",
+        "sub {rem_dst:e}, 48",
+        "jz 31b",
+        "cmp {rem_dst}, {rem_src}",
+        "jbe 21b",
+    "40:",
+        "lea {scratch:e}, [{rem_src} + {disk_pos} * 2 - 1]",
+        "imul {scratch}, {right}",
+        "imul {scratch}, {rem_src}",
+        "add {checksum}, {scratch}",
+        "add {disk_pos:e}, {rem_src:e}",
+        "sub {rem_dst:e}, {rem_src:e}",
+        "cmp {left:e}, {right:e}",
+        "jne 22b",
+        "jmp 50f",
+    "60:",
+        "lea {scratch:e}, [{rem_src} + {disk_pos} * 2 - 1]",
+        "imul {scratch}, {right}",
+        "imul {scratch}, {rem_src}",
+        "add {checksum}, {scratch}",
+    "50:",
+        "shr {checksum}",
+        checksum = inout(reg) checksum,
+        s = in(reg) s.as_ptr(),
+        left = in(reg) 0usize,
+        right = in(reg) s.len() / 2,
+        disk_pos = in(reg) 0usize,
+        rem_dst = in(reg) 0usize,
+        rem_src = in(reg) 0usize,
+        scratch = out(reg) _,
+        len = out(reg) _,
+        options(nostack, readonly),
+    );
 
-    macro_rules! insert_file {
-        ($len:expr, $id:expr) => {
-            let len = $len;
-            checksum += (disk_pos * 2 + len - 1) * $id * len;
-            disk_pos += len;
-        };
-    }
-
-    'outer: loop {
-        loop {
-            if left == right {
-                break 'outer;
-            }
-
-            insert_file!(len!(left * 2), left);
-            rem_dst = len!(left * 2 + 1);
-            left += 1;
-
-            if rem_dst > 0 {
-                break;
-            }
-        }
-
-        if left == right {
-            break 'outer;
-        }
-
-        right -= 1;
-        rem_src = len!(right * 2);
-
-        loop {
-            match rem_dst.cmp(&rem_src) {
-                Ordering::Equal => {
-                    insert_file!(rem_dst, right);
-                    break;
-                }
-                Ordering::Less => {
-                    insert_file!(rem_dst, right);
-                    rem_src -= rem_dst;
-
-                    loop {
-                        if left == right {
-                            insert_file!(rem_src, left);
-                            break 'outer;
-                        }
-
-                        insert_file!(len!(left * 2), left);
-                        rem_dst = len!(left * 2 + 1);
-                        left += 1;
-
-                        if rem_dst > 0 {
-                            break;
-                        }
-                    }
-                }
-                Ordering::Greater => {
-                    insert_file!(rem_src, right);
-                    rem_dst -= rem_src;
-
-                    if left == right {
-                        break 'outer;
-                    }
-
-                    right -= 1;
-                    rem_src = len!(right * 2);
-                }
-            }
-        }
-    }
-
-    checksum / 2
+    checksum
 }
 
 pub fn part1(s: &str) -> impl Display {
