@@ -119,9 +119,7 @@ unsafe fn inner2(s: &[u8]) -> usize {
     });
 
     let mut pointers: [u16; 10] = std::array::from_fn(|i| {
-        if i == 0 {
-            0
-        } else {
+        if (1..10).contains(&i) {
             buffers
                 .get_unchecked(i)
                 .iter()
@@ -135,13 +133,19 @@ unsafe fn inner2(s: &[u8]) -> usize {
                     }
                 })
                 .unwrap_unchecked()
+        } else {
+            0
         }
     });
 
     let mut checksum = 0;
-    let mut id = s.len() as isize / 2 - 1;
+    let mut id = s.len() / 2;
     loop {
-        let i = id as usize * 2;
+        id -= 1;
+        let i = id * 2;
+        if (i as u16) < pointers[1] {
+            break;
+        }
         let used_len = *s.get_unchecked(i) as usize - b'0' as usize;
         let best_bucket = (used_len..10)
             .min_by_key(|b| *pointers.get_unchecked(*b))
@@ -175,9 +179,17 @@ unsafe fn inner2(s: &[u8]) -> usize {
         } else {
             curr_disk_pos
         };
-        checksum += (used_len + disk_pos as usize * 2 - 1) * id as usize * used_len;
-        id -= 1;
-        if id < 0 {
+        checksum += (used_len + disk_pos as usize * 2 - 1) * id * used_len;
+    }
+
+    loop {
+        let i = id * 2;
+        let used_len = *s.get_unchecked(i) as usize - b'0' as usize;
+        let disk_pos = *disk_pos.get_unchecked(i);
+        checksum += (used_len + disk_pos as usize * 2 - 1) * id * used_len;
+        if let Some(nid) = id.checked_sub(1) {
+            id = nid;
+        } else {
             break;
         }
     }
