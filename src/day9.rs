@@ -1,4 +1,8 @@
-use std::{cmp::Ordering, collections::BinaryHeap};
+use std::{
+    arch::x86_64::{__m128i, _mm_minpos_epu16},
+    cmp::Ordering,
+    collections::BinaryHeap,
+};
 
 use super::*;
 
@@ -118,7 +122,7 @@ unsafe fn inner2(s: &[u8]) -> usize {
         r as u32
     });
 
-    let mut pointers: [u16; 10] = std::array::from_fn(|i| {
+    let mut pointers: [u16; 17] = std::array::from_fn(|i| {
         if (1..10).contains(&i) {
             buffers
                 .get_unchecked(i)
@@ -134,7 +138,7 @@ unsafe fn inner2(s: &[u8]) -> usize {
                 })
                 .unwrap_unchecked()
         } else {
-            0
+            19998
         }
     });
 
@@ -147,12 +151,25 @@ unsafe fn inner2(s: &[u8]) -> usize {
             break;
         }
         let used_len = *s.get_unchecked(i) as usize - b'0' as usize;
-        let best_bucket = (used_len..10)
-            .min_by_key(|b| *pointers.get_unchecked(*b))
-            .unwrap_or_default();
+        let minpos: u16x8 = _mm_minpos_epu16(
+            pointers
+                .as_ptr()
+                .add(used_len)
+                .cast::<__m128i>()
+                .read_unaligned(),
+        )
+        .into();
+        let mut best_bucket = minpos[1] as usize + used_len;
+        let mut span_idx = minpos[0] as usize;
+        if used_len == 1 {
+            let span_idx_9 = pointers[9] as usize;
+            if span_idx_9 < span_idx {
+                best_bucket = 9;
+                span_idx = span_idx_9;
+            }
+        }
         let best_ptr = pointers.get_unchecked_mut(best_bucket);
         let curr_disk_pos = *disk_pos.get_unchecked(i);
-        let span_idx = *best_ptr as usize;
         let new_disk_pos = *disk_pos.get_unchecked(span_idx);
         let disk_pos = if new_disk_pos < curr_disk_pos {
             *disk_pos.get_unchecked_mut(span_idx) += used_len as u32;
