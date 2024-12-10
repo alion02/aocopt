@@ -1,13 +1,16 @@
-use super::*;
+use std::hint::assert_unchecked;
 
-const SIZE: usize = 55;
+use super::*;
 
 unsafe fn inner1(s: &[u8]) -> u32 {
     0
 }
 
 unsafe fn inner2(s: &[u8]) -> u32 {
-    let i = s.len() - 2;
+    let len = s.len();
+    assert_unchecked(len < 65536);
+    let size: u32 = (len as f32).sqrt().to_int_unchecked();
+    let i = len - 2;
     let mut total = 0;
 
     asm!(
@@ -30,27 +33,29 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         "cmp {value:l}, 57",
         "je 32b",
         "inc {value:e}",
-        "add {i:e}, -56",
+        "sub {i:e}, {sizep1:e}",
         "js 33f",
         "call 30b",
     "33:",
-        "add {i:e}, 55",
+        "add {i:e}, {size:e}",
         "js 34f",
         "call 30b",
     "34:",
         "add {i:e}, 2",
         "call 30b",
-        "add {i:e}, 55",
+        "add {i:e}, {size:e}",
         "js 36f",
         "call 30b",
     "36:",
-        "add {i:e}, -56",
+        "sub {i:e}, {sizep1:e}",
         "dec {value:e}",
         "ret",
     "40:",
         s = in(reg) s.as_ptr(),
         i = inout(reg) i => _,
         value = inout(reg) 48 => _,
+        size = in(reg) size,
+        sizep1 = in(reg) size + 1,
         total = inout(reg) total,
     );
 
