@@ -1,3 +1,5 @@
+use std::intrinsics::unlikely;
+
 use super::*;
 
 unsafe fn inner1(s: &[u8]) -> usize {
@@ -155,7 +157,7 @@ unsafe fn inner2(s: &[u8]) -> usize {
         .into();
         let mut best_bucket = minpos[1] as usize + used_len;
         let mut span_idx = minpos[0] as usize;
-        if used_len == 1 {
+        if unlikely(used_len == 1) {
             let span_idx_9 = pointers[9] as usize;
             if span_idx_9 < span_idx {
                 best_bucket = 9;
