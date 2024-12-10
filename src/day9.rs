@@ -19,7 +19,7 @@ unsafe fn inner1(s: &[u8]) -> usize {
     macro_rules! insert_file {
         ($len:expr, $id:expr) => {
             let len = $len;
-            checksum += (disk_pos * 2 + len - 1) * $id * len / 2;
+            checksum += (disk_pos * 2 + len - 1) * $id * len;
             disk_pos += len;
         };
     }
@@ -86,7 +86,7 @@ unsafe fn inner1(s: &[u8]) -> usize {
         }
     }
 
-    checksum
+    checksum / 2
 }
 
 pub fn part1(s: &str) -> impl Display {
