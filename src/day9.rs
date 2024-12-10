@@ -187,7 +187,10 @@ unsafe fn inner2(s: &[u8]) -> usize {
             let buf = buffers.get_unchecked_mut(new_bucket);
             bt!("s", buf, span_idx);
             let new_ptr = pointers.get_unchecked_mut(new_bucket);
-            *new_ptr = (*new_ptr as u32).min(span_idx as u32) as u16;
+            let new_curr_min = *new_ptr as u32;
+            if unlikely((span_idx as u32) < new_curr_min) {
+                *new_ptr = span_idx as u16;
+            }
             new_disk_pos
         } else {
             curr_disk_pos
