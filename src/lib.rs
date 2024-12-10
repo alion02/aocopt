@@ -1,3 +1,4 @@
+//                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           .
 #![feature(thread_local, portable_simd, core_intrinsics)]
 #![allow(
     clippy::missing_transmute_annotations,
@@ -23,6 +24,7 @@ use std::{
     },
     array,
     fmt::Display,
+    hint::assert_unchecked,
     intrinsics::{likely, unlikely},
     mem::{offset_of, transmute, MaybeUninit},
     ptr,

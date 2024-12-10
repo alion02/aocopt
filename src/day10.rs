@@ -1,5 +1,3 @@
-use std::hint::assert_unchecked;
-
 use super::*;
 
 unsafe fn inner1(s: &[u8]) -> u32 {
