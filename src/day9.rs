@@ -1,9 +1,3 @@
-use std::{
-    arch::x86_64::{__m128i, _mm_minpos_epu16},
-    cmp::Ordering,
-    collections::BinaryHeap,
-};
-
 use super::*;
 
 unsafe fn inner1(s: &[u8]) -> usize {
