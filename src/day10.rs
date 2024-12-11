@@ -107,15 +107,39 @@ unsafe fn inner1(s: &[u8]) -> u32 {
 
 unsafe fn inner2(s: &[u8]) -> u32 {
     static mut CACHE: [i8x32; 2048] = [i8x32::from_array([0; 32]); 2048];
+    static mut MAP: [u8; 65536] = [0; 65536];
 
     let len = s.len();
     assert_unchecked(len < 65536);
-    let size: u32 = (len as f32).sqrt().to_int_unchecked();
+    let size: usize = (len as f32).sqrt().to_int_unchecked();
     let cache = CACHE.get_unchecked_mut(..(len + 31) / 32);
     cache.fill(Simd::splat(-1));
     let cache = cache.as_mut_ptr();
     let i = len - 33;
     let mut total = 0;
+
+    let half_offset = size - 32;
+    let line_len = size + 1;
+    let map = MAP.as_mut_ptr().cast::<i8x32>();
+    let src = s.as_ptr().cast::<i8x32>();
+    let mut up = src.byte_add(0).read_unaligned();
+    let mut mid = src.byte_add(line_len).read_unaligned();
+    for y in 1..size - 1 {
+        let left = src.byte_add(y * line_len - 1).read_unaligned();
+        let right = src.byte_add(y * line_len + 1).read_unaligned();
+        let down = src.byte_add(y * line_len + line_len).read_unaligned();
+        let next = mid + Simd::splat(1);
+        let can_up = next.simd_eq(up).to_int() << 0;
+        let can_left = next.simd_eq(left).to_int() << 1;
+        let can_right = next.simd_eq(right).to_int() << 2;
+        let can_down = next.simd_eq(down).to_int() << 3;
+        let dir_mask = can_up + can_left + can_right + can_down;
+        map.byte_add(y * line_len).write_unaligned(dir_mask);
+        up = mid;
+        mid = down;
+    }
+
+    std::hint::black_box(&mut MAP);
 
     asm!(
     "50:",
@@ -228,10 +252,7 @@ mod tests {
         let s = read_to_string("./inputs/10.txt").unwrap();
         let s = s.as_str();
 
-        assert_eq!(
-            part1(s).to_string(),
-            read_to_string("./outputs/10p1.txt").unwrap(),
-        )
+        assert_eq!(part1(s).to_string(), read_to_string("./outputs/10p1.txt").unwrap(),)
     }
 
     #[test]
@@ -239,9 +260,6 @@ mod tests {
         let s = read_to_string("./inputs/10.txt").unwrap();
         let s = s.as_str();
 
-        assert_eq!(
-            part2(s).to_string(),
-            read_to_string("./outputs/10p2.txt").unwrap(),
-        );
+        assert_eq!(part2(s).to_string(), read_to_string("./outputs/10p2.txt").unwrap(),);
     }
 }
