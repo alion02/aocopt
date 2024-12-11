@@ -106,13 +106,19 @@ unsafe fn inner1(s: &[u8]) -> u32 {
 }
 
 unsafe fn inner2(s: &[u8]) -> u32 {
+    static mut CACHE: [u8x32; 2048] = [u8x32::from_array([0; 32]); 2048];
+
     let len = s.len();
     assert_unchecked(len < 65536);
     let size: u32 = (len as f32).sqrt().to_int_unchecked();
+    let cache = CACHE.get_unchecked_mut(..(len + 31) / 32);
+    cache.fill(Simd::splat(0));
+    let cache = cache.as_mut_ptr();
     let i = len - 33;
     let mut total = 0;
 
     asm!(
+        "push rax",
     "50:",
         "vpcmpeqb {y}, {y48}, ymmword ptr[{s} + {i}]",
         "vpmovmskb {mask:e}, {y}",
@@ -138,12 +144,21 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         "jmp 40f",
     "32:",
         "inc {total:e}",
+        "inc qword ptr[rsp + 8]",
+        "ret",
+    "38:",
+        "movzx {found:e}, byte ptr[{cache} + {j}]",
+        "add {total:e}, {found:e}",
+        "add qword ptr[rsp + 8], {found}",
         "ret",
     "31:",
         "cmp {value:l}, 57",
         "je 32b",
+        "cmp byte ptr[{cache} + {j}], 0",
+        "jne 38b",
     "39:",
         "inc {value:e}",
+        "push 0",
         "sub {j:e}, {sizep1:e}",
         "js 33f",
         "cmp byte ptr[{s} + {j}], {value:l}",
@@ -169,14 +184,20 @@ unsafe fn inner2(s: &[u8]) -> u32 {
     "36:",
         "sub {j:e}, {sizep1:e}",
         "dec {value:e}",
+        "pop {found}",
+        "add qword ptr[rsp + 8], {found}",
+        "mov byte ptr[{cache} + {j}], {found:l}",
         "ret",
     "40:",
+        "pop {found}",
         s = in(reg) s.as_ptr(),
         i = inout(reg) i => _,
         j = out(reg) _,
         value = inout(reg) 48 => _,
         size = in(reg) size,
         sizep1 = in(reg) size + 1,
+        cache = in(reg) cache,
+        found = out(reg) _,
         total = inout(reg) total,
         mask = out(reg) _,
         y = out(ymm_reg) _,
