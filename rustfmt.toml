@@ -1,2 +1,3 @@
 group_imports = "StdExternalCrate"
 overflow_delimited_expr = true
+max_width = 120
