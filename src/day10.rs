@@ -122,21 +122,42 @@ unsafe fn inner2(s: &[u8]) -> u32 {
     let line_len = size + 1;
     let map = MAP.as_mut_ptr().cast::<i8x32>();
     let src = s.as_ptr().cast::<i8x32>();
-    let mut up = src.byte_add(0).read_unaligned();
-    let mut mid = src.byte_add(line_len).read_unaligned();
-    for y in 1..size - 1 {
-        let left = src.byte_add(y * line_len - 1).read_unaligned();
-        let right = src.byte_add(y * line_len + 1).read_unaligned();
-        let down = src.byte_add(y * line_len + line_len).read_unaligned();
-        let next = mid + Simd::splat(1);
-        let can_up = next.simd_eq(up).to_int() << 0;
-        let can_left = next.simd_eq(left).to_int() << 1;
-        let can_right = next.simd_eq(right).to_int() << 2;
-        let can_down = next.simd_eq(down).to_int() << 3;
-        let dir_mask = can_up + can_left + can_right + can_down;
-        map.byte_add(y * line_len).write_unaligned(dir_mask);
-        up = mid;
-        mid = down;
+
+    let mut up = [Simd::splat(0); 2];
+    let mut mid = [
+        src.byte_add(0).read_unaligned(),
+        src.byte_add(half_offset).read_unaligned(),
+    ];
+    for y in 0..size {
+        for half in 0..2 {
+            let up = &mut up[half];
+            let mid = &mut mid[half];
+            let left = if y == 0 && half == 0 {
+                simd_swizzle!(src.byte_add(half * half_offset + 0).read_unaligned(), Simd::splat(0), [
+                    32, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+                    26, 27, 28, 29, 30,
+                ])
+            } else {
+                src.byte_add(half * half_offset + y * line_len - 1).read_unaligned()
+            };
+            let right = src.byte_add(half * half_offset + y * line_len + 1).read_unaligned();
+            let down = if y == size - 1 {
+                Simd::splat(0)
+            } else {
+                src.byte_add(half * half_offset + y * line_len + line_len)
+                    .read_unaligned()
+            };
+            let next = *mid + Simd::splat(1);
+            let can_up = next.simd_eq(*up).to_int() << 0;
+            let can_left = next.simd_eq(left).to_int() << 1;
+            let can_right = next.simd_eq(right).to_int() << 2;
+            let can_down = next.simd_eq(down).to_int() << 3;
+            let dir_mask = can_up + can_left + can_right + can_down;
+            map.byte_add(half * half_offset + y * line_len)
+                .write_unaligned(dir_mask);
+            *up = *mid;
+            *mid = down;
+        }
     }
 
     std::hint::black_box(&mut MAP);
@@ -185,7 +206,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         "inc {value:e}",
         "push {found}",
         "xor {found:e}, {found:e}",
-        "sub {j:e}, {sizep1:e}",
+        "sub {j:e}, {line_len:e}",
         "js 33f",
         "cmp byte ptr[{s} + {j}], {value:l}",
         "jne 33f",
@@ -208,19 +229,20 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         "jne 36f",
         "call 31b",
     "36:",
-        "sub {j:e}, {sizep1:e}",
+        "sub {j:e}, {line_len:e}",
         "dec {value:e}",
         "mov byte ptr[{cache} + {j}], {found:l}",
         "pop {tmp}",
         "add {found:e}, {tmp:e}",
         "ret",
+        ".long 36b-35b",
     "40:",
         s = in(reg) s.as_ptr(),
         i = inout(reg) i => _,
         j = out(reg) _,
         value = inout(reg) 48 => _,
         size = in(reg) size,
-        sizep1 = in(reg) size + 1,
+        line_len = in(reg) line_len,
         cache = in(reg) cache,
         found = out(reg) _,
         total = inout(reg) total,
