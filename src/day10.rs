@@ -106,13 +106,13 @@ unsafe fn inner1(s: &[u8]) -> u32 {
 }
 
 unsafe fn inner2(s: &[u8]) -> u32 {
-    static mut CACHE: [u8x32; 2048] = [u8x32::from_array([0; 32]); 2048];
+    static mut CACHE: [i8x32; 2048] = [i8x32::from_array([0; 32]); 2048];
 
     let len = s.len();
     assert_unchecked(len < 65536);
     let size: u32 = (len as f32).sqrt().to_int_unchecked();
     let cache = CACHE.get_unchecked_mut(..(len + 31) / 32);
-    cache.fill(Simd::splat(0));
+    cache.fill(Simd::splat(-1));
     let cache = cache.as_mut_ptr();
     let i = len - 33;
     let mut total = 0;
@@ -156,7 +156,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         "cmp {value:l}, 57",
         "je 32b",
         "cmp byte ptr[{cache} + {j}], 0",
-        "jne 38b",
+        "jns 38b",
     "39:",
         "inc {value:e}",
         "push {found}",
