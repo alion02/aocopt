@@ -36,6 +36,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     let tables = (&raw const TABLES).byte_add(64);
 
     asm!(
+        "vpmullw {mults10000}, {mults100}, {mults100}",
         "vpaddb {y}, {off}, ymmword ptr[{ptr}]",
         "vpaddb {x}, {off:x}, xmmword ptr[{ptr} + 20]",
         "vmovdqu ymmword ptr[rsp - 36], {y}",
@@ -58,7 +59,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         y = out(ymm_reg) _,
         off = in(ymm_reg) i8x32::splat(-48),
         mults100 = in(xmm_reg) u16x8::from_array([100, 1, 100, 1, 100, 1, 100, 1]),
-        mults10000 = in(xmm_reg) u16x8::from_array([10000, 1, 10000, 1, 10000, 1, 10000, 1]),
+        mults10000 = out(xmm_reg) _,
         res = inout(reg) res,
         ptr = in(reg) s.as_ptr(),
         len = inout(reg) s.len() => _,
@@ -106,6 +107,7 @@ unsafe fn inner2(s: &[u8]) -> u64 {
     let tables = (&raw const TABLES).byte_add(64);
 
     asm!(
+        "vpmullw {mults10000}, {mults100}, {mults100}",
         "vpaddb {y}, {off}, ymmword ptr[{ptr}]",
         "vpaddb {x}, {off:x}, xmmword ptr[{ptr} + 20]",
         "vmovdqu ymmword ptr[rsp - 36], {y}",
@@ -128,7 +130,7 @@ unsafe fn inner2(s: &[u8]) -> u64 {
         y = out(ymm_reg) _,
         off = in(ymm_reg) i8x32::splat(-48),
         mults100 = in(xmm_reg) u16x8::from_array([100, 1, 100, 1, 100, 1, 100, 1]),
-        mults10000 = in(xmm_reg) u16x8::from_array([10000, 1, 10000, 1, 10000, 1, 10000, 1]),
+        mults10000 = out(xmm_reg) _,
         res = inout(reg) res,
         ptr = in(reg) s.as_ptr(),
         len = inout(reg) s.len() => _,
