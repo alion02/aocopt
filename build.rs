@@ -1,8 +1,6 @@
-use std::{env::var, fs::File, io::Write, path::PathBuf};
+use std::{collections::HashMap, env::var, fs::File, io::Write, path::PathBuf};
 
-fn main() {
-    println!("cargo::rerun-if-changed=build.rs");
-
+fn write_lut_d2() {
     let mut lut = vec![255; 1 << 26].into_boxed_slice();
 
     for (i, vec) in lut.chunks_exact_mut(32).enumerate() {
@@ -42,7 +40,9 @@ fn main() {
     path.push("day2lut.bin");
 
     File::create(path).unwrap().write_all(&lut).unwrap();
+}
 
+fn write_lut_d3() {
     let mut lut = vec![255; 1 << 11].into_boxed_slice();
 
     for (i, vec) in lut.chunks_exact_mut(16).enumerate() {
@@ -76,4 +76,57 @@ fn main() {
     path.push("day3lut.bin");
 
     File::create(path).unwrap().write_all(&lut).unwrap();
+}
+
+fn write_lut_d11() {
+    macro_rules! write {
+        ($d:expr, $u:ty) => {
+            let cache = &mut HashMap::new();
+            let lut = (0..10_000_000)
+                .flat_map(|s| {
+                    fn process_stone(cache: &mut HashMap<(u64, u32), $u>, s: u64, d: u32) -> $u {
+                        if d == 0 {
+                            return 1;
+                        }
+
+                        if let Some(v) = cache.get(&(s, d)) {
+                            return *v;
+                        }
+
+                        let res = if s == 0 {
+                            process_stone(cache, 1, d - 1)
+                        } else {
+                            let digits = s.ilog10() + 1;
+                            if digits % 2 == 0 {
+                                let div = 10u64.pow(digits / 2);
+                                process_stone(cache, s / div, d - 1) + process_stone(cache, s % div, d - 1)
+                            } else {
+                                process_stone(cache, s * 2024, d - 1)
+                            }
+                        };
+
+                        cache.insert((s, d), res);
+                        res
+                    }
+
+                    process_stone(cache, s, $d).to_ne_bytes()
+                })
+                .collect::<Vec<_>>();
+
+            let mut path: PathBuf = var("OUT_DIR").unwrap().into();
+            path.push(format!("day11_depth{}.bin", $d));
+            File::create(path).unwrap().write_all(&lut).unwrap();
+        };
+    }
+
+    write!(25, u32);
+    write!(75, u64);
+}
+
+fn main() {
+    println!("cargo::rerun-if-changed=build.rs");
+
+    write_lut_d2();
+    write_lut_d3();
+    write_lut_d11();
 }
