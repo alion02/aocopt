@@ -65,7 +65,6 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         r1 = out(reg) _,
         r2 = out(reg) _,
         tables = in(reg) tables,
-        options(nostack),
     );
 
     res
@@ -136,7 +135,6 @@ unsafe fn inner2(s: &[u8]) -> u64 {
         r1 = out(reg) _,
         r2 = out(reg) _,
         tables = in(reg) tables,
-        options(nostack),
     );
 
     res
