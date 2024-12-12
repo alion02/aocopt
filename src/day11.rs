@@ -33,7 +33,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     };
 
     let mut res = 0;
-    let tables = &raw const TABLES;
+    let tables = (&raw const TABLES).byte_add(64);
 
     asm!(
         "vpaddb {y}, {off}, ymmword ptr[{ptr}]",
@@ -45,12 +45,12 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         "vmovdqu {x}, xmmword ptr[rsp + {len} - 53]",
         "vpmovmskb {r1:e}, {x}",
         "lzcnt {r1:x}, {r1:x}",
-        "vpmaddubsw {x}, {x}, xmmword ptr[{tables} + {r1} * 8 - 8]",
+        "vpmaddubsw {x}, {x}, xmmword ptr[{tables} + {r1} * 8 - 72]",
         "vpmaddwd {x}, {x}, {mults100}",
         "vpackusdw {x}, {x}, {x}",
         "vpmaddwd {x}, {x}, {mults10000}",
         "vpextrd {r2:e}, {x}, 3",
-        "add {res:e}, [{tables} + {r2} * 4 + 64]",
+        "add {res:e}, [{tables} + {r2} * 4]",
         "sub {len:e}, {r1:e}",
         "dec {len:e}",
         "jne 20b",
@@ -103,7 +103,7 @@ unsafe fn inner2(s: &[u8]) -> u64 {
     };
 
     let mut res = 0;
-    let tables = &raw const TABLES;
+    let tables = (&raw const TABLES).byte_add(64);
 
     asm!(
         "vpaddb {y}, {off}, ymmword ptr[{ptr}]",
@@ -115,12 +115,12 @@ unsafe fn inner2(s: &[u8]) -> u64 {
         "vmovdqu {x}, xmmword ptr[rsp + {len} - 53]",
         "vpmovmskb {r1:e}, {x}",
         "lzcnt {r1:x}, {r1:x}",
-        "vpmaddubsw {x}, {x}, xmmword ptr[{tables} + {r1} * 8 - 8]",
+        "vpmaddubsw {x}, {x}, xmmword ptr[{tables} + {r1} * 8 - 72]",
         "vpmaddwd {x}, {x}, {mults100}",
         "vpackusdw {x}, {x}, {x}",
         "vpmaddwd {x}, {x}, {mults10000}",
         "vpextrd {r2:e}, {x}, 3",
-        "add {res}, [{tables} + {r2} * 8 + 64]",
+        "add {res}, [{tables} + {r2} * 8]",
         "sub {len:e}, {r1:e}",
         "dec {len:e}",
         "jne 20b",
