@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use std::{collections::HashMap, env::var, fs::File, io::Write, path::PathBuf};
 
 fn write_lut_d2() {
@@ -126,7 +128,7 @@ fn write_lut_d11() {
 fn main() {
     println!("cargo::rerun-if-changed=build.rs");
 
-    write_lut_d2();
-    write_lut_d3();
-    write_lut_d11();
+    // write_lut_d2();
+    // write_lut_d3();
+    // write_lut_d11();
 }
