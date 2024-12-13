@@ -44,41 +44,107 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         }
     }
 
-    unsafe fn flood(ptr: *mut i8) -> (u32, u32) {
-        let cell = ptr.read();
-        if cell < 0 {
-            return (0, 0);
-        }
-        ptr.write(-1);
-        let mut area = 1;
-        let mut len = (cell ^ 15).count_ones();
-        if cell & 1 != 0 {
-            let (a, l) = flood(ptr.add(1));
-            area += a;
-            len += l;
-        }
-        if cell & 2 != 0 {
-            let (a, l) = flood(ptr.add(ROW));
-            area += a;
-            len += l;
-        }
-        if cell & 4 != 0 {
-            let (a, l) = flood(ptr.offset(-1));
-            area += a;
-            len += l;
-        }
-        if cell & 8 != 0 {
-            let (a, l) = flood(ptr.offset(-(ROW as isize)));
-            area += a;
-            len += l;
-        }
-        (area, len)
-    }
+    // unsafe fn flood(ptr: *mut i8) -> (u32, u32) {
+    //     let cell = ptr.read();
+    //     if cell < 0 {
+    //         return (0, 0);
+    //     }
+    //     ptr.write(-1);
+    //     let mut area = 1;
+    //     let mut len = (cell ^ 15).count_ones();
+    //     if cell & 1 != 0 {
+    //         let (a, l) = flood(ptr.add(1));
+    //         area += a;
+    //         len += l;
+    //     }
+    //     if cell & 2 != 0 {
+    //         let (a, l) = flood(ptr.add(ROW));
+    //         area += a;
+    //         len += l;
+    //     }
+    //     if cell & 4 != 0 {
+    //         let (a, l) = flood(ptr.offset(-1));
+    //         area += a;
+    //         len += l;
+    //     }
+    //     if cell & 8 != 0 {
+    //         let (a, l) = flood(ptr.offset(-(ROW as isize)));
+    //         area += a;
+    //         len += l;
+    //     }
+    //     (area, len)
+    // }
 
     let mut total = 0;
     for i in 0..BYTES - 1 {
-        let (a, l) = flood(edges.cast::<i8>().add(i));
-        total += a * l;
+        let (mut area, mut len) = (0, 0);
+        asm!(
+            // "lea {table}, [rip + 22222f]",
+            "call 20f",
+            "jmp 99f",
+        "20:",
+            "movzx {cell:e}, byte ptr[{ptr}]",
+            "xor {cell:l}, 15",
+            "jns 21f",
+            "ret",
+        "21:",
+            "mov byte ptr[{ptr}], -1",
+            "inc {area:e}",
+            "popcnt {tmp:e}, {cell:e}",
+            "add {len:e}, {tmp:e}",
+            "push {cell}",
+            "inc {ptr}",
+            "test {cell:l}, 1",
+            "jnz 30f",
+            "call 20b",
+        "30:",
+            "add {ptr}, 140",
+            "test byte ptr[rsp], 2",
+            "jnz 30f",
+            "call 20b",
+        "30:",
+            "add {ptr}, -142",
+            "test byte ptr[rsp], 4",
+            "jnz 30f",
+            "call 20b",
+        "30:",
+            "add {ptr}, -140",
+            "test byte ptr[rsp], 8",
+            "jnz 30f",
+            "call 20b",
+        "30:",
+            "add {ptr}, 141",
+            "pop {tmp}",
+            "ret",
+        //     "mov {tmp:e}, dword ptr[{table} + {cell} * 4]",
+        //     "add {tmp}, {table}",
+        //     "jmp {tmp}",
+        // "22222:",
+        //     ".long 20000f-22222b",
+        //     ".long 20001f-22222b",
+        //     ".long 20010f-22222b",
+        //     ".long 20011f-22222b",
+        //     ".long 20100f-22222b",
+        //     ".long 20101f-22222b",
+        //     ".long 20110f-22222b",
+        //     ".long 20111f-22222b",
+        //     ".long 21000f-22222b",
+        //     ".long 21001f-22222b",
+        //     ".long 21010f-22222b",
+        //     ".long 21011f-22222b",
+        //     ".long 21100f-22222b",
+        //     ".long 21101f-22222b",
+        //     ".long 21110f-22222b",
+        //     ".long 21111f-22222b",
+        "99:",
+            // table = out(reg) _,
+            tmp = out(reg) _,
+            cell = out(reg) _,
+            area = inout(reg) area,
+            len = inout(reg) len,
+            ptr = inout(reg) edges.cast::<i8>().add(i) => _,
+        );
+        total += area * len;
     }
 
     total
