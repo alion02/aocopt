@@ -1,38 +1,38 @@
 use super::*;
 
-unsafe fn inner1(s: &[u8]) -> u64 {
-    static LUT: [i8x16; 128] = {
-        let mut lut = [[-1i8; 16]; 128];
-        let mut y = 3;
-        while y < 6 {
-            let mut x = 3;
-            while x < 6 {
-                let mut y_end = 16;
-                let y_start = y_end - y;
-                let mut x_end = y_start - 4;
-                let x_start = x_end - x;
-                let index = (((1 << x_end) - 1 ^ (1 << x_start) - 1) & 0x1FC) / 4;
-                let entry = &mut lut[index];
-                let mut i = 16;
-                while y_start < y_end {
-                    y_end -= 1;
-                    i -= 1;
-                    entry[i] = y_end;
-                }
-                let mut i = 8;
-                while x_start < x_end {
-                    x_end -= 1;
-                    i -= 1;
-                    entry[i] = x_end;
-                }
-                x += 1;
+static LUT: [i8x16; 128] = {
+    let mut lut = [[-1i8; 16]; 128];
+    let mut y = 3;
+    while y < 6 {
+        let mut x = 3;
+        while x < 6 {
+            let mut y_end = 16;
+            let y_start = y_end - y;
+            let mut x_end = y_start - 4;
+            let x_start = x_end - x;
+            let index = (((1 << x_end) - 1 ^ (1 << x_start) - 1) & 0x1FC) / 4;
+            let entry = &mut lut[index];
+            let mut i = 16;
+            while y_start < y_end {
+                y_end -= 1;
+                i -= 1;
+                entry[i] = y_end;
             }
-            y += 1;
+            let mut i = 8;
+            while x_start < x_end {
+                x_end -= 1;
+                i -= 1;
+                entry[i] = x_end;
+            }
+            x += 1;
         }
+        y += 1;
+    }
 
-        unsafe { transmute(lut) }
-    };
+    unsafe { transmute(lut) }
+};
 
+unsafe fn inner1(s: &[u8]) -> u64 {
     let start = s.as_ptr();
     let i = s.len() as isize;
     let lut = LUT.as_ptr();
@@ -122,38 +122,6 @@ unsafe fn inner1(s: &[u8]) -> u64 {
 }
 
 unsafe fn inner2(s: &[u8]) -> u64 {
-    static LUT: [i8x16; 128] = {
-        let mut lut = [[-1i8; 16]; 128];
-        let mut y = 3;
-        while y < 6 {
-            let mut x = 3;
-            while x < 6 {
-                let mut y_end = 16;
-                let y_start = y_end - y;
-                let mut x_end = y_start - 4;
-                let x_start = x_end - x;
-                let index = (((1 << x_end) - 1 ^ (1 << x_start) - 1) & 0x1FC) / 4;
-                let entry = &mut lut[index];
-                let mut i = 16;
-                while y_start < y_end {
-                    y_end -= 1;
-                    i -= 1;
-                    entry[i] = y_end;
-                }
-                let mut i = 8;
-                while x_start < x_end {
-                    x_end -= 1;
-                    i -= 1;
-                    entry[i] = x_end;
-                }
-                x += 1;
-            }
-            y += 1;
-        }
-
-        unsafe { transmute(lut) }
-    };
-
     let start = s.as_ptr();
     let i = s.len() as isize;
     let lut = LUT.as_ptr();
