@@ -40,7 +40,6 @@ unsafe fn inner1(s: &[u8]) -> u64 {
     let mults100 = u16x8::from_array([100, 1, 100, 1, 100, 1, 100, 1]);
     let mults10000 = u16x8::from_array([10000, 1, 10000, 1, 10000, 1, 10000, 1]);
     let swar_mask = 0xF0_F0_FF_FF_FF_FF_F0_F0u64;
-    // let swar_mult = (1 << 8) * 10 | (1 << 0);
     let swar_bextr = 8 | 8 << 8;
     let sum;
 
@@ -81,12 +80,12 @@ unsafe fn inner1(s: &[u8]) -> u64 {
         "idiv {r1}",
         "test rdx, rdx",
         "jnz 21f",
-        "imul {r1}, {px}",
         "imul {bx}, {r1}",
+        "imul {r1}, {px}",
         "add {sum_a}, rax",
         "mov rax, {r1}",
         "sub rax, {ax}",
-        "cqo", // maybe useless
+        "cqo",
         "idiv {bx}",
         "add {sum_b}, rax",
     "21:",
@@ -118,47 +117,6 @@ unsafe fn inner1(s: &[u8]) -> u64 {
         mults10000 = in(xmm_reg) mults10000,
         options(nostack),
     );
-
-    // assert_unchecked(i >= 0);
-    // while i >= 0 {
-    //     let chunk = start.offset(i - 17).cast::<u8x16>().read_unaligned();
-    //     let chunk = chunk - Simd::splat(b'0');
-    //     let mask = chunk.simd_lt(Simd::splat(10)).to_bitmask() as usize;
-    //     i = i + mask.trailing_zeros() as isize - 69;
-    //     let shuffle = lut.byte_add((mask & 0x1FC) * 4).read();
-    //     let chunk = _mm_shuffle_epi8(chunk.into(), shuffle.into());
-    //     let chunk = _mm_maddubs_epi16(chunk, mults10);
-    //     let chunk = _mm_madd_epi16(chunk, mults100);
-    //     let chunk = _mm_packus_epi32(chunk, chunk);
-    //     let chunk: i32x4 = _mm_madd_epi16(chunk, mults10000).into();
-    //     let px = chunk[0];
-    //     let py = chunk[1];
-    //     let a = start.offset(i + 13).cast::<u64>().read_unaligned();
-    //     let a = a & !swar_mask;
-    //     let a = a.wrapping_mul(swar_mult);
-    //     let ax = _bextr2_u32(a as u32, swar_bextr) as i32;
-    //     let ay = (a >> 56) as i32;
-    //     let b = start.offset(i + 34).cast::<u64>().read_unaligned();
-    //     let b = b & !swar_mask;
-    //     let b = b.wrapping_mul(swar_mult);
-    //     let bx = _bextr2_u32(b as u32, swar_bextr) as i32;
-    //     let by = (b >> 56) as i32;
-    //     let subexpr1 = by * ax - bx * ay;
-    //     if subexpr1 == 0 {
-    //         continue;
-    //     }
-    //     let subexpr2 = by * px - bx * py;
-    //     let a_rem = subexpr2 % subexpr1;
-    //     if a_rem != 0 {
-    //         continue;
-    //     }
-    //     let a_quot = subexpr2 / subexpr1;
-    //     let subexpr3 = bx * subexpr1;
-    //     assert_unchecked(subexpr3 != 0);
-    //     let b_quot = (px * subexpr1 - ax * subexpr2) / subexpr3;
-    //     sum_a += a_quot;
-    //     sum_b += b_quot;
-    // }
 
     sum
 }
