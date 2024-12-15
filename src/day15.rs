@@ -23,20 +23,20 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         "jmp 24f",
     // #
     "21:",
-        "sub {pos:e}, {tmp:e}",
+        "sub {pos:e}, dword ptr[{dir_table} + {inst} * 2]",
     // .
     "20:",
         "inc {ip}",
         "je 99f",
     "24:",
         "movzx {inst:e}, byte ptr[{instrs} + {ip}]",
-        "mov {tmp:e}, dword ptr[{dir_table} + {inst} * 2]",
-        "add {pos:e}, {tmp:e}",
+        "add {pos:e}, dword ptr[{dir_table} + {inst} * 2]",
         "cmp byte ptr[{map} + {pos}], 46",
         "je 20b",
         "jb 21b",
     // O
         "mov {block_pos:e}, {pos:e}",
+        "mov {tmp:e}, dword ptr[{dir_table} + {inst} * 2]",
     "22:",
     // O repeats
         "add {block_pos:e}, {tmp:e}",
