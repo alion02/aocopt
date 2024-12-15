@@ -58,10 +58,15 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         options(nostack),
     );
 
-    map.iter()
-        .zip((0..50).flat_map(|y| (0..51).map(move |x| (x, y))))
-        .map(|(c, (x, y))| (*c == b'O') as u32 * (x + y * 100))
-        .sum()
+    #[inline(never)]
+    fn count(map: &mut [u8; 2560]) -> u32 {
+        map.iter()
+            .zip((0..50).flat_map(|y| (0..51).map(move |x| (x, y))))
+            .map(|(c, (x, y))| (*c == b'O') as u32 * (x + y * 100))
+            .sum()
+    }
+
+    count(map)
 }
 
 unsafe fn inner2(s: &[u8]) -> u32 {
