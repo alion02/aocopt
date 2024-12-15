@@ -1,18 +1,19 @@
-use super::*;
+use std::hint::unreachable_unchecked;
 
-static DIR_TABLE: [i16; 256] = {
-    let mut dir_table = [0; 256];
-    dir_table[b'>' as usize] = 1;
-    dir_table[b'v' as usize] = 51;
-    dir_table[b'<' as usize] = -1;
-    dir_table[b'<' as usize + 1] = -1;
-    dir_table[b'^' as usize] = -51;
-    dir_table[b'^' as usize + 1] = -1;
-    dir_table
-};
+use super::*;
 
 #[allow(unreachable_code)]
 unsafe fn inner1(s: &[u8]) -> u32 {
+    static DIR_TABLE: [i16; 256] = {
+        let mut dir_table = [0; 256];
+        dir_table[b'>' as usize] = 1;
+        dir_table[b'v' as usize] = 51;
+        dir_table[b'<' as usize] = -1;
+        dir_table[b'<' as usize + 1] = -1;
+        dir_table[b'^' as usize] = -51;
+        dir_table[b'^' as usize + 1] = -1;
+        dir_table
+    };
     static mut MAP: [u8; 2560] = [0; 2560];
     let map = &mut MAP;
     map.copy_from_slice(s.get_unchecked(..2560));
@@ -71,7 +72,79 @@ unsafe fn inner1(s: &[u8]) -> u32 {
 }
 
 unsafe fn inner2(s: &[u8]) -> u32 {
-    0
+    static DIR_TABLE: [i16; 256] = {
+        let mut dir_table = [0; 256];
+        dir_table[b'>' as usize] = 1;
+        dir_table[b'v' as usize] = 51;
+        dir_table[b'<' as usize] = -1;
+        dir_table[b'<' as usize + 1] = -1;
+        dir_table[b'^' as usize] = -51;
+        dir_table[b'^' as usize + 1] = -1;
+        dir_table
+    };
+    static mut MAP: [i8; 5120] = [0; 5120];
+    let map = &mut MAP;
+    for i in 0..2560 {
+        let (a, b) = match *s.get_unchecked(i) {
+            b'#' => (-2, -2),
+            b'O' => (0, -1),
+            _ => (127, 127),
+        };
+        *map.get_unchecked_mut(i * 2) = a;
+        *map.get_unchecked_mut(i * 2 + 1) = b;
+    }
+
+    let pos = 24usize * 102 + 48;
+
+    asm!(
+        "jmp 24f",
+    // #
+    "21:",
+        "sub {pos:e}, dword ptr[{dir_table} + {inst} * 2]",
+    // .
+    "20:",
+        "inc {ip}",
+        "je 99f",
+    "24:",
+        "movzx {inst:e}, byte ptr[{instrs} + {ip}]",
+        "add {pos:e}, dword ptr[{dir_table} + {inst} * 2]",
+        "cmp byte ptr[{map} + {pos}], -1",
+        "jo 20b",
+        "jl 21b",
+    // O
+        "mov {block_pos:e}, {pos:e}",
+    "22:",
+    // O repeats
+        "add {block_pos:e}, dword ptr[{dir_table} + {inst} * 2]",
+        "cmp byte ptr[{map} + {block_pos}], 46",
+        "ja 22b",
+        "jb 21b",
+    // O then .
+    "23:",
+        "mov byte ptr[{map} + {pos}], 46",
+        "mov byte ptr[{map} + {block_pos}], 79",
+        "inc {ip}",
+        "jne 24b",
+    "99:",
+        instrs = in(reg) s.as_ptr_range().end,
+        ip = inout(reg) -20020isize => _,
+        map = in(reg) map,
+        pos = inout(reg) pos => _,
+        inst = out(reg) _,
+        block_pos = out(reg) _,
+        dir_table = inout(reg) &DIR_TABLE => _,
+        options(nostack),
+    );
+
+    #[inline(never)]
+    fn count(map: &mut [i8; 5120]) -> u32 {
+        map.iter()
+            .zip((0..50).flat_map(|y| (0..102).map(move |x| (x, y))))
+            .map(|(c, (x, y))| (*c == b'[' as i8) as u32 * (x + y * 100))
+            .sum()
+    }
+
+    count(map)
 }
 
 pub fn part1(s: &str) -> impl Display {
