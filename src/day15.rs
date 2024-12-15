@@ -1,18 +1,19 @@
 use super::*;
 
+static DIR_TABLE: [i16; 256] = {
+    let mut dir_table = [0; 256];
+    dir_table[b'>' as usize] = 1;
+    dir_table[b'v' as usize] = 51;
+    dir_table[b'<' as usize] = -1;
+    dir_table[b'<' as usize + 1] = -1;
+    dir_table[b'^' as usize] = -51;
+    dir_table[b'^' as usize + 1] = -1;
+    dir_table
+};
+
 #[allow(unreachable_code)]
 unsafe fn inner1(s: &[u8]) -> u32 {
     static mut MAP: [u8; 2560] = [0; 2560];
-    static DIR_TABLE: [i16; 256] = {
-        let mut dir_table = [0; 256];
-        dir_table[b'>' as usize] = 1;
-        dir_table[b'v' as usize] = 51;
-        dir_table[b'<' as usize] = -1;
-        dir_table[b'<' as usize + 1] = -1;
-        dir_table[b'^' as usize] = -51;
-        dir_table[b'^' as usize + 1] = -1;
-        dir_table
-    };
     let map = &mut MAP;
     map.copy_from_slice(s.get_unchecked(..2560));
     let pos = 24usize * 51 + 24;
