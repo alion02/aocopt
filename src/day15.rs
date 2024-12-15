@@ -36,10 +36,9 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         "jb 21b",
     // O
         "mov {block_pos:e}, {pos:e}",
-        "mov {tmp:e}, dword ptr[{dir_table} + {inst} * 2]",
     "22:",
     // O repeats
-        "add {block_pos:e}, {tmp:e}",
+        "add {block_pos:e}, dword ptr[{dir_table} + {inst} * 2]",
         "cmp byte ptr[{map} + {block_pos}], 46",
         "ja 22b",
         "jb 21b",
@@ -54,7 +53,6 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         ip = inout(reg) -20020isize => _,
         map = in(reg) map,
         pos = inout(reg) pos => _,
-        tmp = out(reg) _,
         inst = out(reg) _,
         block_pos = out(reg) _,
         dir_table = inout(reg) &DIR_TABLE => _,
