@@ -39,8 +39,8 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     // O repeats
         "add {block_pos:e}, dword ptr[{dir_table} + {inst} * 2]",
         "cmp byte ptr[{map} + {block_pos}], 46",
-        "ja 22b",
         "jb 21b",
+        "ja 22b",
     // O then .
     "23:",
         "mov byte ptr[{map} + {pos}], 46",
