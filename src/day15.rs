@@ -1,7 +1,67 @@
 use super::*;
 
+#[allow(unreachable_code)]
 unsafe fn inner1(s: &[u8]) -> u32 {
-    0
+    static mut MAP: [u8; 2560] = [0; 2560];
+    static DIR_TABLE: [i16; 256] = {
+        let mut dir_table = [0; 256];
+        dir_table[b'>' as usize] = 1;
+        dir_table[b'v' as usize] = 51;
+        dir_table[b'<' as usize] = -1;
+        dir_table[b'<' as usize + 1] = -1;
+        dir_table[b'^' as usize] = -51;
+        dir_table[b'^' as usize + 1] = -1;
+        dir_table
+    };
+    let map = &mut MAP;
+    map.copy_from_slice(s.get_unchecked(..2560));
+    let pos = 24usize * 51 + 24;
+    *map.get_unchecked_mut(pos) = b'.';
+
+    asm!(
+        "jmp 24f",
+    // #
+    "21:",
+        "sub {pos:e}, dword ptr[{dir_table} + {inst} * 2]",
+    // .
+    "20:",
+        "inc {ip}",
+        "je 99f",
+    "24:",
+        "movzx {inst:e}, byte ptr[{instrs} + {ip}]",
+        "add {pos:e}, dword ptr[{dir_table} + {inst} * 2]",
+        "cmp byte ptr[{map} + {pos}], 46",
+        "je 20b",
+        "jb 21b",
+    // O
+        "mov {block_pos:e}, {pos:e}",
+    "22:",
+    // O repeats
+        "add {block_pos:e}, dword ptr[{dir_table} + {inst} * 2]",
+        "cmp byte ptr[{map} + {block_pos}], 46",
+        "ja 22b",
+        "jb 21b",
+    // O then .
+    "23:",
+        "mov byte ptr[{map} + {pos}], 46",
+        "mov byte ptr[{map} + {block_pos}], 79",
+        "inc {ip}",
+        "jne 24b",
+    "99:",
+        instrs = in(reg) s.as_ptr_range().end,
+        ip = inout(reg) -20020isize => _,
+        map = in(reg) map,
+        pos = inout(reg) pos => _,
+        inst = out(reg) _,
+        block_pos = out(reg) _,
+        dir_table = inout(reg) &DIR_TABLE => _,
+        options(nostack),
+    );
+
+    map.iter()
+        .zip((0..50).flat_map(|y| (0..51).map(move |x| (x, y))))
+        .map(|(c, (x, y))| (*c == b'O') as u32 * (x + y * 100))
+        .sum()
 }
 
 unsafe fn inner2(s: &[u8]) -> u32 {
