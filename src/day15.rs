@@ -21,6 +21,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     asm!(
         "jmp 24f",
     // #
+    ".align 32",
     "21:",
         "sub {pos:e}, dword ptr[{dir_table} + {inst} * 2]",
     // .
