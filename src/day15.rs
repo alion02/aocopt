@@ -58,15 +58,37 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         options(nostack),
     );
 
-    #[inline(never)]
-    fn count(map: &mut [u8; 2560]) -> u32 {
-        map.iter()
-            .zip((0..50).flat_map(|y| (0..51).map(move |x| (x, y))))
-            .map(|(c, (x, y))| (*c == b'O') as u32 * (x + y * 100))
-            .sum()
+    let mut map = map.as_ptr().add(52).cast::<u8x16>();
+    let mut vec_counts = u32x4::splat(0);
+    let mut y_mult = i16x8::splat(-100);
+    for _y in 1..49 {
+        macro_rules! process {
+            ($i:expr) => {{
+                let c = map.byte_add($i).read_unaligned();
+                let c = c.simd_eq(Simd::splat(b'O'));
+                let x = c.select(
+                    u8x16::from_array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]) + Simd::splat($i),
+                    Simd::splat(0),
+                );
+                (c.to_int(), x)
+            }};
+        }
+        let (c1, x1) = process!(0);
+        let (c2, x2) = process!(16);
+        let (c3, x3) = process!(32);
+        let c = c1 + c2 + c3;
+        let c = _mm_maddubs_epi16(i8x16::splat(1).into(), c.into());
+        let c = _mm_madd_epi16(c, y_mult.into());
+        vec_counts += u32x4::from(c);
+        let x = x1 + x2 + x3;
+        let x = _mm_maddubs_epi16(x.into(), i8x16::splat(1).into());
+        let x = _mm_madd_epi16(x, i16x8::splat(1).into());
+        vec_counts += u32x4::from(x);
+        y_mult -= i16x8::splat(100);
+        map = map.byte_add(51);
     }
 
-    count(map)
+    vec_counts.reduce_sum()
 }
 
 #[inline]
