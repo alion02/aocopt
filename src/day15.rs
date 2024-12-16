@@ -164,8 +164,8 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         "cmp byte ptr[{map} + {bpos}], -1",
         "jl 31b", // #
         "je 32f", // .
-        // []
-        // TODO guard against exponential
+        "cmp byte ptr[{map} + {bpos}], 0",
+        "je 30b",
         "push {bpos}",
         "call 30b",
         "pop {bpos}",
