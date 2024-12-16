@@ -1,6 +1,6 @@
 use super::*;
 
-#[allow(unreachable_code)]
+#[inline]
 unsafe fn inner1(s: &[u8]) -> u32 {
     static DIR_TABLE: [i16; 256] = {
         let mut dir_table = [0; 256];
@@ -69,6 +69,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     count(map)
 }
 
+#[inline]
 unsafe fn inner2(s: &[u8]) -> u32 {
     static DIR_TABLE: [i16; 256] = {
         let mut dir_table = [0; 256];
@@ -223,10 +224,12 @@ unsafe fn inner2(s: &[u8]) -> u32 {
     count(map)
 }
 
+#[inline]
 pub fn part1(s: &str) -> impl Display {
     unsafe { inner1(s.as_bytes()) }
 }
 
+#[inline]
 pub fn part2(s: &str) -> impl Display {
     unsafe { inner2(s.as_bytes()) }
 }
