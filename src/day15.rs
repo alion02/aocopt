@@ -82,7 +82,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         dir_table[b'^' as usize + 1] = -1;
         dir_table
     };
-    static mut MAP: [i8; 6400] = [0; 6400];
+    static mut MAP: [i8; 6400] = [-1; 6400];
     let map = &mut MAP;
 
     #[inline(never)]
@@ -217,9 +217,22 @@ unsafe fn inner2(s: &[u8]) -> u32 {
     #[inline(never)]
     fn count(map: &mut [i8; 6400]) -> u32 {
         map.iter()
-            .zip((0..50).flat_map(|y| (0..102).map(move |x| (x, y))))
+            .zip((0..50).flat_map(|y| (0..128).map(move |x| (x, y))))
             .map(|(c, (x, y))| (*c == 0) as u32 * (x + y * 100))
             .sum()
+    }
+
+    for y in 0..50 {
+        for x in 0..100 {
+            print!("{}", match map[y * 128 + x] {
+                -2 => '#',
+                -1 => '.',
+                0 => '[',
+                1 => ']',
+                _ => unreachable!(),
+            });
+        }
+        println!();
     }
 
     count(map)
