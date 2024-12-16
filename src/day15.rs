@@ -152,6 +152,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         "jne 24b",
         "jmp 99f",
     "31:",
+        "sub {pos:e}, {step:e}",
         "mov rsp, {saved_rsp}",
         "inc {ip}",
         "jne 24b",
