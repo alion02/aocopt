@@ -1,5 +1,3 @@
-use std::hint::unreachable_unchecked;
-
 use super::*;
 
 #[allow(unreachable_code)]
