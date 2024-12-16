@@ -222,19 +222,6 @@ unsafe fn inner2(s: &[u8]) -> u32 {
             .sum()
     }
 
-    for y in 0..50 {
-        for x in 0..100 {
-            print!("{}", match map[y * 128 + x] {
-                -2 => '#',
-                -1 => '.',
-                0 => '[',
-                1 => ']',
-                _ => unreachable!(),
-            });
-        }
-        println!();
-    }
-
     count(map)
 }
 
