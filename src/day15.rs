@@ -81,25 +81,32 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         dir_table[b'^' as usize + 1] = -1;
         dir_table
     };
-    static mut MAP: [i8; 6400] = [-1; 6400];
+    static mut MAP: [i8; 6400] = [-2; 6400];
     let map = &mut MAP;
 
-    #[inline(never)]
-    unsafe fn init(s: &[u8], map: &mut [i8; 6400]) {
-        for y in 0..50 {
-            for x in 0..50 {
-                let (a, b) = match *s.get_unchecked(y * 51 + x) {
-                    b'O' => (0, 1),
-                    b'#' => (-2, -2),
-                    _ => (-1, -1),
-                };
-                *map.get_unchecked_mut(y * 128 + x * 2) = a;
-                *map.get_unchecked_mut(y * 128 + x * 2 + 1) = b;
-            }
+    for y in 1..49 {
+        for x in 0..3 {
+            let chunk = s.as_ptr().add(y * 51 + x * 16 + 1).cast::<u8x16>().read_unaligned();
+            let chunk = simd_swizzle!(chunk, [
+                0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15,
+                15
+            ]);
+            let a = chunk
+                .simd_eq(Simd::splat(b'#'))
+                .select(i8x32::splat(-2), i8x32::splat(-1));
+            let b = chunk.simd_eq(Simd::splat(b'O')).select(
+                Simd::from_array([
+                    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
+                ]),
+                a,
+            );
+
+            map.as_mut_ptr()
+                .add(y * 128 + x * 32 + 2)
+                .cast::<i8x32>()
+                .write_unaligned(b);
         }
     }
-
-    init(s, map);
 
     let pos = 24usize * 128 + 48;
 
