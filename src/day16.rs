@@ -60,7 +60,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
                     return turn_cost + cost as u32 * 2;
                 }
                 let mut dir = node.dir;
-                let visit_mask = dir & 1;
+                let visit_mask = 1 << (dir & 1);
                 'delete: {
                     if *visited.get_unchecked(pos as usize) & visit_mask == 0 {
                         *visited.get_unchecked_mut(pos as usize) |= visit_mask;
