@@ -20,8 +20,16 @@ macro_rules! far_edge {
 
 #[inline]
 unsafe fn inner1(s: &[u8]) -> u32 {
-    static mut CURR: [Node; 4096] = [unsafe { transmute(0) }; 4096];
-    static mut NEXT: [Node; 4096] = [unsafe { transmute(0) }; 4096];
+    static mut CURR: [Node; 4096] = [Node {
+        pos: 0,
+        dir: 0,
+        cost: 0,
+    }; 4096];
+    static mut NEXT: [Node; 4096] = [Node {
+        pos: 0,
+        dir: 0,
+        cost: 0,
+    }; 4096];
     static OFFSET: [i16; 4] = [1, row_len!(), -1, -row_len!()];
 
     let mut visited = [0u8; row_len!() * side_len!()];
@@ -30,11 +38,10 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     let offset = &OFFSET;
 
     #[derive(Clone, Copy)]
-    #[repr(align(4))]
     struct Node {
         pos: u16,
         dir: u8,
-        cost: u8,
+        cost: u16,
     }
 
     curr[0] = Node {
@@ -55,7 +62,6 @@ unsafe fn inner1(s: &[u8]) -> u32 {
             loop {
                 let node = curr.get_unchecked_mut(j);
                 let mut pos = node.pos;
-                assert!(*s.get_unchecked(pos as usize) != b'#');
                 if pos == row_len!() + far_edge!() {
                     return turn_cost + cost as u32 * 2;
                 }
@@ -119,8 +125,16 @@ unsafe fn inner1(s: &[u8]) -> u32 {
 
 #[inline]
 unsafe fn inner2(s: &[u8]) -> u32 {
-    static mut CURR: [Node; 4096] = [unsafe { transmute(0) }; 4096];
-    static mut NEXT: [Node; 4096] = [unsafe { transmute(0) }; 4096];
+    static mut CURR: [Node; 4096] = [Node {
+        pos: 0,
+        dir: 0,
+        cost: 0,
+    }; 4096];
+    static mut NEXT: [Node; 4096] = [Node {
+        pos: 0,
+        dir: 0,
+        cost: 0,
+    }; 4096];
     static OFFSET: [i16; 4] = [1, row_len!(), -1, -row_len!()];
 
     let mut visited = [0u8; row_len!() * side_len!()];
@@ -135,11 +149,10 @@ unsafe fn inner2(s: &[u8]) -> u32 {
     let offset = &OFFSET;
 
     #[derive(Clone, Copy)]
-    #[repr(align(4))]
     struct Node {
         pos: u16,
         dir: u8,
-        cost: u8,
+        cost: u16,
     }
 
     #[derive(Clone, Copy)]
@@ -170,7 +183,6 @@ unsafe fn inner2(s: &[u8]) -> u32 {
             loop {
                 let node = curr.get_unchecked_mut(j);
                 let pos = node.pos;
-                assert!(*s.get_unchecked(pos as usize) != b'#');
                 if pos == row_len!() + far_edge!() {
                     final_cost = turn_cost + cost as u32 * 2;
                 }
