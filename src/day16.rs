@@ -24,7 +24,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     static mut NEXT: [Node; 4096] = [unsafe { transmute(0) }; 4096];
     static OFFSET: [i16; 4] = [1, row_len!(), -1, -row_len!()];
 
-    let mut visited = [0u8; row_len!() * side_len!()];
+    let mut visited = [0u8; row_len!() * side_len!() / 2];
     let mut curr = &mut CURR;
     let mut next = &mut NEXT;
     let offset = &OFFSET;
@@ -61,9 +61,10 @@ unsafe fn inner1(s: &[u8]) -> u32 {
                 }
                 let mut dir = node.dir;
                 let visit_mask = 1 << (dir & 1);
+                let visit_idx = pos as usize / 2;
                 'delete: {
-                    if *visited.get_unchecked(pos as usize) & visit_mask == 0 {
-                        *visited.get_unchecked_mut(pos as usize) |= visit_mask;
+                    if *visited.get_unchecked(visit_idx) & visit_mask == 0 {
+                        *visited.get_unchecked_mut(visit_idx) |= visit_mask;
                         dir ^= 1;
                         {
                             let pos = pos.wrapping_add_signed(*offset.get_unchecked(dir as usize));
@@ -123,7 +124,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
     static mut NEXT: [Node; 4096] = [unsafe { transmute(0) }; 4096];
     static OFFSET: [i16; 4] = [1, row_len!(), -1, -row_len!()];
 
-    let mut visited = [0u8; row_len!() * side_len!()];
+    let mut visited = [0u8; row_len!() * side_len!() / 2];
     let mut origins = [Origin {
         dirpos1: !0,
         dirpos2: !0,
@@ -177,9 +178,10 @@ unsafe fn inner2(s: &[u8]) -> u32 {
                 let mut dir = node.dir;
                 let dirpos = (pos as u32 * 2 + dir as u32) as u16;
                 let visit_mask = 1 << (dir & 1);
+                let visit_idx = pos as usize / 2;
                 'delete: {
-                    if *visited.get_unchecked(pos as usize) & visit_mask == 0 {
-                        *visited.get_unchecked_mut(pos as usize) |= visit_mask;
+                    if *visited.get_unchecked(visit_idx) & visit_mask == 0 {
+                        *visited.get_unchecked_mut(visit_idx) |= visit_mask;
                         dir ^= 1;
                         {
                             let mut npos = pos.wrapping_add_signed(*offset.get_unchecked(dir as usize));
