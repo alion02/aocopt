@@ -129,7 +129,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         dirpos2: !0,
         dirpos3: !0,
         total_cost: !0,
-    }; row_len!() * side_len!() * 4];
+    }; row_len!() * side_len!() * 2];
     let mut curr = &mut CURR;
     let mut next = &mut NEXT;
     let offset = &OFFSET;
@@ -145,10 +145,10 @@ unsafe fn inner2(s: &[u8]) -> u32 {
     #[derive(Clone, Copy)]
     #[repr(align(8))]
     struct Origin {
-        dirpos1: u32,
-        dirpos2: u32,
-        dirpos3: u32,
-        total_cost: u32,
+        dirpos1: u16,
+        dirpos2: u16,
+        dirpos3: u16,
+        total_cost: u16,
     }
 
     curr[0] = Node {
@@ -175,7 +175,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
                     final_cost = turn_cost + cost as u32 * 2;
                 }
                 let mut dir = node.dir;
-                let dirpos = pos as u32 * 4 + dir as u32;
+                let dirpos = (pos as u32 * 2 + dir as u32) as u16;
                 let visit_mask = 1 << (dir & 1);
                 'delete: {
                     if *visited.get_unchecked(pos as usize) & visit_mask == 0 {
@@ -185,8 +185,8 @@ unsafe fn inner2(s: &[u8]) -> u32 {
                             let mut npos = pos.wrapping_add_signed(*offset.get_unchecked(dir as usize));
                             if *s.get_unchecked(npos as usize) != b'#' {
                                 npos = npos.wrapping_add_signed(*offset.get_unchecked(dir as usize));
-                                let origin = origins.get_unchecked_mut(npos as usize * 4 + dir as usize);
-                                let total_cost = turn_cost + next_cost as u32 * 2 + 1000;
+                                let origin = origins.get_unchecked_mut(npos as usize * 2 + dir as usize);
+                                let total_cost = (turn_cost + next_cost as u32 * 2 + 1000) as u16;
                                 if origin.total_cost >= total_cost {
                                     origin.total_cost = total_cost;
                                     if origin.dirpos1 == !0 {
@@ -210,8 +210,8 @@ unsafe fn inner2(s: &[u8]) -> u32 {
                             let mut npos = pos.wrapping_add_signed(*offset.get_unchecked(dir as usize));
                             if *s.get_unchecked(npos as usize) != b'#' {
                                 npos = npos.wrapping_add_signed(*offset.get_unchecked(dir as usize));
-                                let origin = origins.get_unchecked_mut(npos as usize * 4 + dir as usize);
-                                let total_cost = turn_cost + next_cost as u32 * 2 + 1000;
+                                let origin = origins.get_unchecked_mut(npos as usize * 2 + dir as usize);
+                                let total_cost = (turn_cost + next_cost as u32 * 2 + 1000) as u16;
                                 if origin.total_cost >= total_cost {
                                     origin.total_cost = total_cost;
                                     if origin.dirpos1 == !0 {
@@ -234,8 +234,8 @@ unsafe fn inner2(s: &[u8]) -> u32 {
                         let mut npos = pos.wrapping_add_signed(*offset.get_unchecked(dir as usize));
                         if *s.get_unchecked(npos as usize) != b'#' {
                             npos = npos.wrapping_add_signed(*offset.get_unchecked(dir as usize));
-                            let origin = origins.get_unchecked_mut(npos as usize * 4 + dir as usize);
-                            let total_cost = turn_cost + next_cost as u32 * 2;
+                            let origin = origins.get_unchecked_mut(npos as usize * 2 + dir as usize);
+                            let total_cost = (turn_cost + next_cost as u32 * 2) as u16;
                             if origin.total_cost >= total_cost {
                                 origin.total_cost = total_cost;
                                 if origin.dirpos1 == !0 {
@@ -277,10 +277,10 @@ unsafe fn inner2(s: &[u8]) -> u32 {
 
     let mut res = 0;
 
-    for dirpos in [(row_len!() + far_edge!()) * 4, (row_len!() + far_edge!()) * 4 + 3] {
+    for dirpos in [(row_len!() + far_edge!()) * 2, (row_len!() + far_edge!()) * 2 + 3] {
         let origin = origins.get_unchecked_mut(dirpos);
-        if origin.total_cost == final_cost {
-            unsafe fn mark_path(origins: &mut [Origin; row_len!() * side_len!() * 4], dirpos: usize) -> i32 {
+        if origin.total_cost == final_cost as u16 {
+            unsafe fn mark_path(origins: &mut [Origin; row_len!() * side_len!() * 2], dirpos: usize) -> i32 {
                 let origin = *origins.get_unchecked(dirpos);
                 let mut total = 0;
                 if origin.dirpos1 < !0 {
