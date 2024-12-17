@@ -129,11 +129,13 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         pos: 0,
         dir: 0,
         cost: 0,
+        prev_dirpos: 0,
     }; 4096];
     static mut NEXT: [Node; 4096] = [Node {
         pos: 0,
         dir: 0,
         cost: 0,
+        prev_dirpos: 0,
     }; 4096];
     static OFFSET: [i16; 4] = [1, row_len!(), -1, -row_len!()];
 
@@ -153,6 +155,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         pos: u16,
         dir: u8,
         cost: u16,
+        prev_dirpos: u32,
     }
 
     #[derive(Clone, Copy)]
@@ -168,6 +171,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         pos: far_edge!() * row_len!() + 1,
         dir: 0,
         cost: 0,
+        prev_dirpos: 0,
     };
     curr[1].cost = !0;
 
@@ -183,12 +187,25 @@ unsafe fn inner2(s: &[u8]) -> u32 {
             loop {
                 let node = curr.get_unchecked_mut(j);
                 let pos = node.pos;
-                if pos == row_len!() + far_edge!() {
-                    final_cost = turn_cost + cost as u32 * 2;
-                }
                 let mut dir = node.dir;
                 let dirpos = pos as u32 * 4 + dir as u32;
                 let visit_mask = 1 << (dir & 1);
+                let prev_dirpos = node.prev_dirpos;
+                let origin = origins.get_unchecked_mut(dirpos as usize);
+                let total_cost = turn_cost + cost as u32 * 2;
+                if origin.total_cost >= total_cost {
+                    origin.total_cost = total_cost;
+                    if origin.dirpos1 == !0 {
+                        origin.dirpos1 = prev_dirpos;
+                    } else if origin.dirpos2 == !0 {
+                        origin.dirpos2 = prev_dirpos;
+                    } else {
+                        origin.dirpos3 = prev_dirpos;
+                    }
+                }
+                if pos == row_len!() + far_edge!() {
+                    final_cost = turn_cost + cost as u32 * 2;
+                }
                 'delete: {
                     if *visited.get_unchecked(pos as usize) & visit_mask == 0 {
                         *visited.get_unchecked_mut(pos as usize) |= visit_mask;
@@ -197,22 +214,11 @@ unsafe fn inner2(s: &[u8]) -> u32 {
                             let mut npos = pos.wrapping_add_signed(*offset.get_unchecked(dir as usize));
                             if *s.get_unchecked(npos as usize) != b'#' {
                                 npos = npos.wrapping_add_signed(*offset.get_unchecked(dir as usize));
-                                let origin = origins.get_unchecked_mut(npos as usize * 4 + dir as usize);
-                                let total_cost = turn_cost + next_cost as u32 * 2 + 1000;
-                                if origin.total_cost >= total_cost {
-                                    origin.total_cost = total_cost;
-                                    if origin.dirpos1 == !0 {
-                                        origin.dirpos1 = dirpos;
-                                    } else if origin.dirpos2 == !0 {
-                                        origin.dirpos2 = dirpos;
-                                    } else {
-                                        origin.dirpos3 = dirpos;
-                                    }
-                                }
                                 *next.get_unchecked_mut(k) = Node {
                                     pos: npos,
                                     dir,
                                     cost: next_cost,
+                                    prev_dirpos: dirpos,
                                 };
                                 k += 1;
                             }
@@ -222,22 +228,11 @@ unsafe fn inner2(s: &[u8]) -> u32 {
                             let mut npos = pos.wrapping_add_signed(*offset.get_unchecked(dir as usize));
                             if *s.get_unchecked(npos as usize) != b'#' {
                                 npos = npos.wrapping_add_signed(*offset.get_unchecked(dir as usize));
-                                let origin = origins.get_unchecked_mut(npos as usize * 4 + dir as usize);
-                                let total_cost = turn_cost + next_cost as u32 * 2 + 1000;
-                                if origin.total_cost >= total_cost {
-                                    origin.total_cost = total_cost;
-                                    if origin.dirpos1 == !0 {
-                                        origin.dirpos1 = dirpos;
-                                    } else if origin.dirpos2 == !0 {
-                                        origin.dirpos2 = dirpos;
-                                    } else {
-                                        origin.dirpos3 = dirpos;
-                                    }
-                                }
                                 *next.get_unchecked_mut(k) = Node {
                                     pos: npos,
                                     dir,
                                     cost: next_cost,
+                                    prev_dirpos: dirpos,
                                 };
                                 k += 1;
                             }
@@ -246,20 +241,9 @@ unsafe fn inner2(s: &[u8]) -> u32 {
                         let mut npos = pos.wrapping_add_signed(*offset.get_unchecked(dir as usize));
                         if *s.get_unchecked(npos as usize) != b'#' {
                             npos = npos.wrapping_add_signed(*offset.get_unchecked(dir as usize));
-                            let origin = origins.get_unchecked_mut(npos as usize * 4 + dir as usize);
-                            let total_cost = turn_cost + next_cost as u32 * 2;
-                            if origin.total_cost >= total_cost {
-                                origin.total_cost = total_cost;
-                                if origin.dirpos1 == !0 {
-                                    origin.dirpos1 = dirpos;
-                                } else if origin.dirpos2 == !0 {
-                                    origin.dirpos2 = dirpos;
-                                } else {
-                                    origin.dirpos3 = dirpos;
-                                }
-                            }
                             node.pos = npos;
                             node.cost = next_cost;
+                            node.prev_dirpos = dirpos;
                             break 'delete;
                         }
                     }
@@ -316,7 +300,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         }
     }
 
-    res as u32 + 1
+    res as u32 - 1
 }
 
 #[inline]
