@@ -20,8 +20,8 @@ macro_rules! far_edge {
 
 #[inline]
 unsafe fn inner1(s: &[u8]) -> u32 {
-    static mut CURR: [Node; 2048] = [unsafe { transmute(0) }; 2048];
-    static mut NEXT: [Node; 2048] = [unsafe { transmute(0) }; 2048];
+    static mut CURR: [Node; 4096] = [unsafe { transmute(0) }; 4096];
+    static mut NEXT: [Node; 4096] = [unsafe { transmute(0) }; 4096];
     static OFFSET: [i16; 4] = [1, row_len!(), -1, -row_len!()];
 
     let mut visited = [0u8; row_len!() * side_len!()];
