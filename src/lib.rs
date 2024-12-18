@@ -49,6 +49,8 @@ macro_rules! black_box {
 extern crate aoc_runner_derive;
 extern crate aoc_runner;
 
+pub mod day18;
+
 pub mod day17;
 
 // pub mod day16;
