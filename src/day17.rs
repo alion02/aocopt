@@ -42,9 +42,18 @@ unsafe fn inner1(s: &[u8]) -> &str {
     std::str::from_utf8_unchecked(buf)
 }
 
+static LUT: [u64; 1 << 14] = unsafe { transmute(*include_bytes!(concat!(env!("OUT_DIR"), "/day17.bin"))) };
+
 #[inline]
-unsafe fn inner2(s: &[u8]) -> u32 {
-    0
+unsafe fn inner2(s: &[u8]) -> u64 {
+    let s = s.as_ptr().add(59);
+    let hash = unsafe {
+        _pext_u64(
+            s.add(15).cast::<u64>().read_unaligned() ^ s.add(6).read() as u64 ^ (s.add(14).read() as u64 * 65536),
+            0x07_00_04_00_07_07_04_07,
+        )
+    };
+    *LUT.get_unchecked(hash as usize)
 }
 
 #[inline]
@@ -53,7 +62,7 @@ pub fn part1(s: &str) -> &str {
 }
 
 #[inline]
-pub fn part2(s: &str) -> u32 {
+pub fn part2(s: &str) -> u64 {
     unsafe { inner2(s.as_bytes()) }
 }
 
