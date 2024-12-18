@@ -2,44 +2,119 @@ use super::*;
 
 #[inline]
 unsafe fn inner1(s: &[u8]) -> &str {
-    static mut BUF: [u8; 17] = [b','; 17];
+    static mut BUF: u8x64 = Simd::from_array([
+        10,
+        1,
+        10,
+        1,
+        10,
+        1,
+        10,
+        1,
+        100,
+        0,
+        1,
+        0,
+        100,
+        0,
+        1,
+        0,
+        16,
+        39,
+        1,
+        0,
+        16,
+        39,
+        1,
+        0,
+        b'0'.wrapping_neg(),
+        0,
+        0,
+        0,
+        b'1',
+        b',',
+        b',',
+        b',',
+        b',',
+        b',',
+        b',',
+        b',',
+        b',',
+        b',',
+        b',',
+        b',',
+        b',',
+        b',',
+        b',',
+        b',',
+        b',',
+        b',',
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ]);
 
-    let chunk = s.as_ptr().add(12).cast::<u8x16>().read_unaligned();
-    let chunk = chunk - Simd::splat(b'0');
-    let chunk = _mm_maddubs_epi16(
-        chunk.into(),
-        u8x16::from_array([10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1]).into(),
+    let r: *const u8;
+
+    asm!(
+        "vpbroadcastb {chunk}, [rip + {buf}+24]",
+        "vpaddb {chunk}, {chunk}, [{ptr} + 12]",
+        "vpmaddubsw {chunk}, {chunk}, [rip + {buf}]",
+        "vpmaddwd {chunk}, {chunk}, [rip + {buf}+8]",
+        "vpackusdw {chunk}, {chunk}, {chunk}",
+        "vpmaddwd {chunk}, {chunk}, [rip + {buf}+16]",
+        "vmovd edx, {chunk}",
+        "movzx {imm1:e}, byte ptr[{ptr} + 65]",
+        "sub {imm1:e}, {ascii0}",
+        "vpbroadcastd {chunk}, [rip + {buf}+25]",
+        "vpcmpeqb {chunk}, {chunk}, [{ptr} + 64]",
+        "vpmovmskb {imm2:e}, {chunk}",
+        "tzcnt {imm2:e}, {imm2:e}",
+        "movzx {imm2:e}, byte ptr[{ptr} + {imm2} + 66]",
+        "lea {out}, [rip + {buf}+29]",
+    "20:",
+        "bextr ecx, edx, {mask:e}",
+        "xor ecx, {imm1:e}",
+        "shrx {c:e}, edx, ecx",
+        "xor ecx, {c:e}",
+        "xor ecx, {imm2:e}",
+        "and ecx, 7",
+        "add ecx, 48",
+        "mov byte ptr[{out} + {len} - 91], cl",
+        "add {len:e}, 2",
+        "shr edx, 3",
+        "jnz 20b",
+        imm1 = out(reg) _,
+        imm2 = out(reg) _,
+        out("edx") _,
+        out("ecx") _,
+        c = out(reg) _,
+        mask = in(reg) 3 << 8,
+        chunk = out(xmm_reg) _,
+        buf = sym BUF,
+        ptr = inout(reg) s.as_ptr() => _,
+        len = inout(reg) s.len() => _,
+        ascii0 = const b'0',
+        out = out(reg) r,
+        options(nostack),
     );
-    let chunk = _mm_madd_epi16(chunk, u16x8::from_array([100, 1, 100, 1, 100, 1, 100, 1]).into());
-    let chunk = _mm_packus_epi32(chunk, chunk);
-    let chunk = _mm_madd_epi16(
-        chunk,
-        u16x8::from_array([10000, 1, 10000, 1, 10000, 1, 10000, 1]).into(),
-    );
-    let mut a = u32x4::from(chunk)[0];
-    let imm1 = *s.get_unchecked(65) as u32 - b'0' as u32;
-    let chunk = s.as_ptr().add(64).cast::<u8x16>().read_unaligned();
-    let chunk = chunk.simd_eq(Simd::from_array([
-        0, 0, 0, b'1', 0, 0, 0, b'1', 0, 0, 0, b'1', 0, 0, 0, b'1',
-    ]));
-    let mask = chunk.to_bitmask() as u32;
-    let offset = mask.trailing_zeros() as usize;
 
-    let imm2 = *s.get_unchecked(64 + offset + 2) as u32 - b'0' as u32;
-
-    let buf = &mut BUF;
-    let mut len = s.len();
-    loop {
-        let b = a % 8 ^ imm1;
-        *buf.get_unchecked_mut(len - 91) = ((a >> b ^ b ^ imm2) % 8 + b'0' as u32) as u8;
-        a >>= 3;
-        len += 2;
-        if a == 0 {
-            break;
-        }
-    }
-
-    std::str::from_utf8_unchecked(buf)
+    std::str::from_utf8_unchecked(std::slice::from_raw_parts(r, 17))
 }
 
 static LUT: [u64; 1 << 14] = unsafe { transmute(*include_bytes!(concat!(env!("OUT_DIR"), "/day17.bin"))) };
