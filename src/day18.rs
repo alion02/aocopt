@@ -1,11 +1,48 @@
-use std::arch::x86_64::_pdep_u32;
-
 use super::*;
+
+static LUT: [i8x16; 512] = unsafe {
+    let mut lut = [[-1i8; 16]; 512];
+
+    let mut idx = 0;
+    while idx < 512 {
+        let shuffle = &mut lut[idx];
+
+        let mut mask = idx << 2;
+        if idx & 1 == 0 {
+            mask |= 2;
+        }
+        mask |= 0x800;
+
+        let mut slot = 0;
+        let mut byte = 0;
+        while slot < 8 {
+            let zeros = mask.trailing_zeros();
+            match zeros {
+                1 => {
+                    shuffle[slot + 1] = byte;
+                    byte += 2;
+                }
+                2 => {
+                    shuffle[slot] = byte;
+                    shuffle[slot + 1] = byte + 1;
+                    byte += 3;
+                }
+                _ => break,
+            }
+            mask >>= zeros + 1;
+            slot += 2;
+        }
+
+        idx += 1;
+    }
+
+    transmute(lut)
+};
 
 #[inline]
 unsafe fn inner1(s: &[u8]) -> u32 {
     let mut ptr = s.as_ptr().cast::<i8x16>();
-    let lut = &[i8x16::splat(0); 32];
+    let lut = &LUT;
 
     let map: &mut [u8; 73 * 72 / 2] = &mut array::from_fn(|i| {
         if (72 / 8..72 * 72 / 8).contains(&i) {
@@ -20,33 +57,33 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     });
     let map = map.as_mut_ptr();
 
-    // macro_rules! bts {
-    //     ($idx:expr) => {
-    //         asm!(
-    //             "bts dword ptr[{map} + {offset}], {idx:e}",
-    //             map = in(reg) map,
-    //             idx = in(reg) $idx,
-    //             offset = const 72 / 8,
-    //             options(nostack),
-    //         );
-    //     };
-    // }
+    macro_rules! bts {
+        ($idx:expr) => {
+            asm!(
+                "bts dword ptr[{map} + {offset}], {idx:e}",
+                map = in(reg) map,
+                idx = in(reg) $idx,
+                offset = const 72 / 8,
+                options(nostack),
+            );
+        };
+    }
 
-    // for _ in 0..512 {
-    //     let chunk = ptr.read_unaligned();
-    //     let chunk = chunk - Simd::splat(b'0' as _);
-    //     let mask = chunk.simd_lt(Simd::splat(0)).to_bitmask() as u32;
-    //     let step = _pdep_u32(8, mask).trailing_zeros();
-    //     let shuffle = lut.as_ptr().byte_add(((mask & 0xFC) * 4) as usize).read();
-    //     let chunk = _mm_shuffle_epi8(chunk.into(), shuffle.into());
-    //     let chunk = _mm_maddubs_epi16(chunk, u16x8::splat(u16::from_ne_bytes([10, 1])).into());
-    //     let chunk: u32x4 = _mm_madd_epi16(chunk, u16x8::from_array([72, 1, 72, 1, 72, 1, 72, 1]).into()).into();
-    //     let p1 = chunk[0];
-    //     let p2 = chunk[1];
-    //     bts!(p1);
-    //     bts!(p2);
-    //     ptr = ptr.byte_add(step as usize);
-    // }
+    for _ in 0..512 {
+        let chunk = ptr.read_unaligned();
+        let chunk = chunk - Simd::splat(b'0' as _);
+        let mask = chunk.simd_lt(Simd::splat(0)).to_bitmask() as u32;
+        let step = _pdep_u32(8, mask).trailing_zeros() + 1;
+        let shuffle = lut.as_ptr().byte_add(((mask & 0x7FC) * 4) as usize).read();
+        let chunk = _mm_shuffle_epi8(chunk.into(), shuffle.into());
+        let chunk = _mm_maddubs_epi16(chunk, u16x8::splat(u16::from_ne_bytes([10, 1])).into());
+        let chunk: u32x4 = _mm_madd_epi16(chunk, u16x8::from_array([72, 1, 72, 1, 72, 1, 72, 1]).into()).into();
+        let p1 = chunk[0];
+        let p2 = chunk[1];
+        bts!(p1);
+        bts!(p2);
+        ptr = ptr.byte_add(step as usize);
+    }
 
     static mut FRONT: [u16; 256] = [0; 256];
 
