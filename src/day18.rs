@@ -44,25 +44,26 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     let mut ptr = s.as_ptr().cast::<i8x16>();
     let lut = &LUT;
 
-    static mut MAP: [i8; 73 * 72 / 8] = [-1; 73 * 72 / 8];
+    static mut MAP: [i8; 73 * 72 / 8] = [0; 73 * 72 / 8];
 
     let map = MAP.as_mut_ptr();
     for i in 0..23 {
         map.add(72 / 8 + i * 72 / 8 * 3)
             .cast::<i8x32>()
             .write_unaligned(i8x32::from_array([
-                0, 0, 0, 0, 0, 0, 0, 0, -128, 0, 0, 0, 0, 0, 0, 0, 0, -128, 0, 0, 0, 0, 0, 0, 0, 0, -128, -1, -1, -1,
-                -1, -1,
+                !0, !0, !0, !0, !0, !0, !0, !0, !-128, !0, !0, !0, !0, !0, !0, !0, !0, !-128, !0, !0, !0, !0, !0, !0,
+                !0, !0, !-128, !-1, !-1, !-1, !-1, !-1,
             ]));
     }
     map.add(69 * 72 / 8).cast::<i8x32>().write_unaligned(i8x32::from_array([
-        0, 0, 0, 0, 0, 0, 0, 0, -128, 0, 0, 0, 0, 0, 0, 0, 0, -128, 0, 0, 0, 0, 0, 0, 0, 0, -128, -1, -1, -1, -1, -1,
+        !0, !0, !0, !0, !0, !0, !0, !0, !-128, !0, !0, !0, !0, !0, !0, !0, !0, !-128, !0, !0, !0, !0, !0, !0, !0, !0,
+        !-128, !-1, !-1, !-1, !-1, !-1,
     ]));
 
-    macro_rules! bts {
+    macro_rules! btr {
         ($idx:expr) => {
             asm!(
-                "bts dword ptr[{map} + {offset}], {idx:e}",
+                "btr dword ptr[{map} + {offset}], {idx:e}",
                 map = in(reg) map,
                 idx = in(reg) $idx,
                 offset = const 72 / 8,
@@ -82,8 +83,8 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         let chunk: u32x4 = _mm_madd_epi16(chunk, u16x8::from_array([72, 1, 72, 1, 72, 1, 72, 1]).into()).into();
         let p1 = chunk[0];
         let p2 = chunk[1];
-        bts!(p1);
-        bts!(p2);
+        btr!(p1);
+        btr!(p2);
         ptr = ptr.byte_add(step as usize);
     }
 
@@ -94,19 +95,19 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     asm!(
     "30:",
         "lea {next:e}, [{pos} + 1]",
-        "bts dword ptr[{map}], {next:e}",
+        "btr dword ptr[{map}], {next:e}",
         "mov word ptr[{front} + {j} * 2], {next:x}",
         "adc {j:l}, 0",
         "lea {next:e}, [{pos} + 72]",
-        "bts dword ptr[{map}], {next:e}",
+        "btr dword ptr[{map}], {next:e}",
         "mov word ptr[{front} + {j} * 2], {next:x}",
         "adc {j:l}, 0",
         "lea {next:e}, [{pos} - 1]",
-        "bts dword ptr[{map}], {next:e}",
+        "btr dword ptr[{map}], {next:e}",
         "mov word ptr[{front} + {j} * 2], {next:x}",
         "adc {j:l}, 0",
         "lea {next:e}, [{pos} - 72]",
-        "bts dword ptr[{map}], {next:e}",
+        "btr dword ptr[{map}], {next:e}",
         "mov word ptr[{front} + {j} * 2], {next:x}",
         "adc {j:l}, 0",
         "cmp {i:l}, {k:l}",
