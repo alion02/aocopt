@@ -121,14 +121,31 @@ static LUT: [u64; 1 << 14] = unsafe { transmute(*include_bytes!(concat!(env!("OU
 
 #[inline]
 unsafe fn inner2(s: &[u8]) -> u64 {
-    let s = s.as_ptr().add(59);
-    let hash = unsafe {
-        _pext_u64(
-            s.add(15).cast::<u64>().read_unaligned() ^ s.add(6).read() as u64 ^ (s.add(14).read() as u64 * 65536),
-            0x07_00_04_00_07_07_04_07,
-        )
-    };
-    *LUT.get_unchecked(hash as usize)
+    let out: u64;
+    asm!(
+        "movzx {out:e}, byte ptr[{ptr} + 73]",
+        "shl {out:e}, 16",
+        "xor {out:l}, byte ptr[{ptr} + 65]",
+        "xor {out}, qword ptr[{ptr} + 74]",
+        "pext {out}, {out}, {mask}",
+        "mov {out}, qword ptr[rdx + {out} * 8]",
+        out = out(reg) out,
+        out("ecx") _,
+        inout("rdx") &LUT => _,
+        ptr = in(reg) s.as_ptr(),
+        options(nostack),
+        mask = in(reg) 0x07_00_04_00_07_07_04_07u64,
+    );
+    out
+
+    // let s = s.as_ptr().add(59);
+    // let hash = unsafe {
+    //     _pext_u64(
+    //         s.add(15).cast::<u64>().read_unaligned() ^ s.add(6).read() as u64 ^ (s.add(14).read() as u64 * 65536),
+    //         0x07_00_04_00_07_07_04_07,
+    //     )
+    // };
+    // *LUT.get_unchecked(hash as usize)
 }
 
 #[inline]
