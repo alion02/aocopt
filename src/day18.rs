@@ -44,7 +44,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     let mut ptr = s.as_ptr().cast::<i8x16>();
     let lut = &LUT;
 
-    let map: &mut [u8; 73 * 72 / 2] = &mut array::from_fn(|i| {
+    let map: &mut [u8; 73 * 72 / 8] = &mut array::from_fn(|i| {
         if (72 / 8..72 * 72 / 8).contains(&i) {
             if i % 9 == 8 {
                 128
