@@ -47,11 +47,17 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     static mut MAP: [i8; 73 * 72 / 8] = [-1; 73 * 72 / 8];
 
     let map = MAP.as_mut_ptr();
-    for i in 1..72 {
-        map.add(i * 72 / 8).cast::<i8x16>().write_unaligned(i8x16::from_array([
-            0, 0, 0, 0, 0, 0, 0, 0, -128, -1, -1, -1, -1, -1, -1, -1,
-        ]));
+    for i in 0..23 {
+        map.add(72 / 8 + i * 72 / 8 * 3)
+            .cast::<i8x32>()
+            .write_unaligned(i8x32::from_array([
+                0, 0, 0, 0, 0, 0, 0, 0, -128, 0, 0, 0, 0, 0, 0, 0, 0, -128, 0, 0, 0, 0, 0, 0, 0, 0, -128, -1, -1, -1,
+                -1, -1,
+            ]));
     }
+    map.add(69 * 72 / 8).cast::<i8x32>().write_unaligned(i8x32::from_array([
+        0, 0, 0, 0, 0, 0, 0, 0, -128, 0, 0, 0, 0, 0, 0, 0, 0, -128, 0, 0, 0, 0, 0, 0, 0, 0, -128, -1, -1, -1, -1, -1,
+    ]));
 
     macro_rules! bts {
         ($idx:expr) => {
