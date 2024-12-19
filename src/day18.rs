@@ -196,149 +196,111 @@ unsafe fn inner2(s: &[u8]) -> &str {
             -1, -1,
         ]));
 
-    // let mut prev_at_count = 0;
+    let len: usize;
+    asm!(
+        "mov {saved_rsp}, rsp",
+        "jmp 201f",
+    "200:",
+        "lea {ptr}, [{ptr} + {len} + 1]",
+    "201:",
+        "vpaddb {chunk}, {negascii0}, [{ptr}]",
+        "vpmovmskb {mask:e}, {chunk}",
+        "pdep {len:e}, {const2:e}, {mask:e}",
+        "tzcnt {len:e}, {len:e}",
+        "and {mask:e}, 0x7fc",
+        "vpshufb {chunk}, {chunk}, [{lut} + {mask} * 4]",
+        "vpmaddubsw {chunk}, {chunk}, {mul10}",
+        "vpmaddwd {chunk}, {chunk}, {mul_coords}",
+        "vmovd {pos:e}, {chunk}",
+        "add {pos:e}, 72",
+        "bts dword ptr[{map}], {pos:e}",
+        "bt dword ptr[{front}], {pos:e}",
+        "jnc 200b",
+        "jmp 31f",
+    "30:",
+        "pop {pos}",
+    "31:",
+        "bt dword ptr[{goal}], {pos:e}",
+        "jc 40f",
+        "lea {next:e}, [{pos} + 71]",
+        "bts dword ptr[{front}], {next:e}",
+        "jc 50f",
+        "bt dword ptr[{map}], {next:e}",
+        "jnc 50f",
+        "push {next}",
+    "50:",
+        "lea {next:e}, [{pos} + 72]",
+        "bts dword ptr[{front}], {next:e}",
+        "jc 50f",
+        "bt dword ptr[{map}], {next:e}",
+        "jnc 50f",
+        "push {next}",
+    "50:",
+        "lea {next:e}, [{pos} - 1]",
+        "bts dword ptr[{front}], {next:e}",
+        "jc 50f",
+        "bt dword ptr[{map}], {next:e}",
+        "jnc 50f",
+        "push {next}",
+    "50:",
+        "lea {next:e}, [{pos} + 73]",
+        "bts dword ptr[{front}], {next:e}",
+        "jc 50f",
+        "bt dword ptr[{map}], {next:e}",
+        "jnc 50f",
+        "push {next}",
+    "50:",
+        "lea {next:e}, [{pos} - 73]",
+        "bts dword ptr[{front}], {next:e}",
+        "jc 50f",
+        "bt dword ptr[{map}], {next:e}",
+        "jnc 50f",
+        "push {next}",
+    "50:",
+        "lea {next:e}, [{pos} + 1]",
+        "bts dword ptr[{front}], {next:e}",
+        "jc 50f",
+        "bt dword ptr[{map}], {next:e}",
+        "jnc 50f",
+        "push {next}",
+    "50:",
+        "lea {next:e}, [{pos} - 72]",
+        "bts dword ptr[{front}], {next:e}",
+        "jc 50f",
+        "bt dword ptr[{map}], {next:e}",
+        "jnc 50f",
+        "push {next}",
+    "50:",
+        "lea {next:e}, [{pos} - 71]",
+        "bts dword ptr[{front}], {next:e}",
+        "jc 50f",
+        "bt dword ptr[{map}], {next:e}",
+        "jnc 50f",
+        "push {next}",
+    "50:",
+        "cmp {saved_rsp}, rsp",
+        "jne 30b",
+        "jmp 200b",
+    "40:",
+        "mov rsp, {saved_rsp}",
+        map = in(reg) map,
+        front = in(reg) front,
+        goal = in(reg) &GOAL,
+        pos = out(reg) _,
+        chunk = out(xmm_reg) _,
+        negascii0 = in(xmm_reg) u8x16::splat(b'0'.wrapping_neg()),
+        mul10 = in(xmm_reg) u16x8::splat(u16::from_ne_bytes([10, 1])),
+        mul_coords = in(xmm_reg) u16x8::from_array([72, 1, 72, 1, 72, 1, 72, 1]),
+        mask = out(reg) _,
+        len = out(reg) len,
+        const2 = in(reg) 2,
+        lut = in(reg) lut,
+        ptr = inout(reg) ptr,
+        next = out(reg) _,
+        saved_rsp = out(reg) _,
+    );
 
-    loop {
-        let chunk = ptr.read_unaligned();
-        let chunk = chunk - Simd::splat(b'0' as _);
-        let mask = chunk.simd_lt(Simd::splat(0)).to_bitmask() as u32;
-        let len = _pdep_u32(2, mask).trailing_zeros() as usize;
-        let shuffle = lut.as_ptr().byte_add(((mask & 0x7FC) * 4) as usize).read();
-        let chunk = _mm_shuffle_epi8(chunk.into(), shuffle.into());
-        let chunk = _mm_maddubs_epi16(chunk, u16x8::splat(u16::from_ne_bytes([10, 1])).into());
-        let chunk: u32x4 = _mm_madd_epi16(chunk, u16x8::from_array([72, 1, 72, 1, 72, 1, 72, 1]).into()).into();
-        let pos = chunk[0] + 72;
-        let ret: usize;
-        asm!(
-            "bts dword ptr[{map}], {pos:e}",
-            "bt dword ptr[{front}], {pos:e}",
-            "jnc 20f",
-            "mov {saved_rsp}, rsp",
-            "push {pos}",
-        "30:",
-            "pop {pos}",
-            "bt dword ptr[{goal}], {pos:e}",
-            "jc 40f",
-            "lea {next:e}, [{pos} + 71]",
-            "bts dword ptr[{front}], {next:e}",
-            "jc 50f",
-            "bt dword ptr[{map}], {next:e}",
-            "jnc 50f",
-            "push {next}",
-        "50:",
-            "lea {next:e}, [{pos} + 72]",
-            "bts dword ptr[{front}], {next:e}",
-            "jc 50f",
-            "bt dword ptr[{map}], {next:e}",
-            "jnc 50f",
-            "push {next}",
-        "50:",
-            "lea {next:e}, [{pos} - 1]",
-            "bts dword ptr[{front}], {next:e}",
-            "jc 50f",
-            "bt dword ptr[{map}], {next:e}",
-            "jnc 50f",
-            "push {next}",
-        "50:",
-            "lea {next:e}, [{pos} + 73]",
-            "bts dword ptr[{front}], {next:e}",
-            "jc 50f",
-            "bt dword ptr[{map}], {next:e}",
-            "jnc 50f",
-            "push {next}",
-        "50:",
-            "lea {next:e}, [{pos} - 73]",
-            "bts dword ptr[{front}], {next:e}",
-            "jc 50f",
-            "bt dword ptr[{map}], {next:e}",
-            "jnc 50f",
-            "push {next}",
-        "50:",
-            "lea {next:e}, [{pos} + 1]",
-            "bts dword ptr[{front}], {next:e}",
-            "jc 50f",
-            "bt dword ptr[{map}], {next:e}",
-            "jnc 50f",
-            "push {next}",
-        "50:",
-            "lea {next:e}, [{pos} - 72]",
-            "bts dword ptr[{front}], {next:e}",
-            "jc 50f",
-            "bt dword ptr[{map}], {next:e}",
-            "jnc 50f",
-            "push {next}",
-        "50:",
-            "lea {next:e}, [{pos} - 71]",
-            "bts dword ptr[{front}], {next:e}",
-            "jc 50f",
-            "bt dword ptr[{map}], {next:e}",
-            "jnc 50f",
-            "push {next}",
-        "50:",
-            "cmp {saved_rsp}, rsp",
-            "jne 30b",
-            "jmp 20f",
-        "40:",
-            "mov rsp, {saved_rsp}",
-            "mov {ret}, 1",
-        "20:",
-            map = in(reg) map,
-            front = in(reg) front,
-            goal = in(reg) &GOAL,
-            pos = inout(reg) pos as usize => _,
-            next = out(reg) _,
-            saved_rsp = out(reg) _,
-            ret = inout(reg) 0usize => ret,
-        );
-
-        // let str = &mut String::new();
-        // let mut curr_at_count = 0;
-        // for y in 1..72 {
-        //     for x in 0..9 {
-        //         for bit_idx in 0..8 {
-        //             if x == 8 && bit_idx == 7 {
-        //                 continue;
-        //             }
-        //             let i = y * 9 + x;
-        //             let bit = 1 << bit_idx;
-        //             let front = *front.add(i) & bit != 0;
-        //             let map = *map.add(i) & bit != 0;
-        //             if front {
-        //                 curr_at_count += 1;
-        //             }
-        //             write!(
-        //                 str,
-        //                 "{}",
-        //                 if y * 72 + x * 8 + bit_idx == pos as _ {
-        //                     '+'
-        //                 } else if front && !map {
-        //                     '?'
-        //                 } else if front {
-        //                     '@'
-        //                 } else if map {
-        //                     '#'
-        //                 } else {
-        //                     '.'
-        //                 }
-        //             )
-        //             .unwrap();
-        //         }
-        //     }
-        //     writeln!(str).unwrap();
-        // }
-        // if curr_at_count > prev_at_count {
-        //     prev_at_count = curr_at_count;
-        //     println!(
-        //         "{str}coords:{}\n",
-        //         std::str::from_utf8_unchecked(std::slice::from_raw_parts(ptr.cast(), len))
-        //     );
-        // }
-
-        if ret > 0 {
-            return std::str::from_utf8_unchecked(std::slice::from_raw_parts(ptr.cast(), len));
-        }
-        ptr = ptr.byte_add(len + 1);
-    }
+    std::str::from_utf8_unchecked(std::slice::from_raw_parts(ptr.cast(), len))
 }
 
 #[inline]
