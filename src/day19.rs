@@ -51,8 +51,14 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     let mut total = 0;
 
     while ptr != s.as_ptr_range().end {
-        unsafe fn check_towel(trie: *mut [u16; 6], mut ptr: *const u8) -> u32 {
-            let mut hash = hash!(*ptr);
+        unsafe fn check_towel(seen: &mut u64, trie: *mut [u16; 6], ptr: *const u8, mut i: usize) -> u32 {
+            if *seen & 1 << i > 0 {
+                return 0;
+            }
+
+            *seen |= 1 << i;
+
+            let mut hash = hash!(*ptr.add(i));
             if is_lf!(hash) {
                 return 1;
             }
@@ -65,11 +71,11 @@ unsafe fn inner1(s: &[u8]) -> u32 {
                     return 0;
                 }
 
-                ptr = ptr.add(1);
-                hash = hash!(*ptr);
+                i += 1;
+                hash = hash!(*ptr.add(i));
                 node = trie.add(next as usize).cast();
 
-                if *node.add(2) > 0 && check_towel(trie, ptr) > 0 {
+                if *node.add(2) > 0 && check_towel(seen, trie, ptr, i) > 0 {
                     return 1;
                 }
                 if is_lf!(hash) {
@@ -78,7 +84,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
             }
         }
 
-        total += check_towel(trie, ptr);
+        total += check_towel(&mut 0, trie, ptr, 0);
         while *ptr != b'\n' {
             ptr = ptr.add(1);
         }
