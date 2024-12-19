@@ -1,5 +1,3 @@
-use std::fmt::Write;
-
 use super::*;
 
 static LUT: [i8x16; 512] = unsafe {
