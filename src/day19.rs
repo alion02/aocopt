@@ -21,32 +21,35 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         };
     }
 
-    loop {
-        let mut hash = hash!(*ptr);
-        let mut curr = 0;
-        loop {
-            ptr = ptr.add(1);
-            let next = trie.add(curr).cast::<u16>().add(hash as usize);
-            if *next == 0 {
-                len += 1;
-                *next = len;
-                *trie.add(len as usize) = [0; 6];
+    ({
+        #[inline(never)]
+        || loop {
+            let mut hash = hash!(*ptr);
+            let mut curr = 0;
+            loop {
+                ptr = ptr.add(1);
+                let next = trie.add(curr).cast::<u16>().add(hash as usize);
+                if *next == 0 {
+                    len += 1;
+                    *next = len;
+                    *trie.add(len as usize) = [0; 6];
+                }
+
+                hash = hash!(*ptr);
+                curr = *next as usize;
+                if (hash as i32) < 0 {
+                    break;
+                }
             }
 
-            hash = hash!(*ptr);
-            curr = *next as usize;
-            if (hash as i32) < 0 {
+            ptr = ptr.add(2);
+            assert!(*ptr > 64);
+            *trie.add(curr).cast::<u16>().add(2) = 1;
+            if is_lf!(hash) {
                 break;
             }
         }
-
-        ptr = ptr.add(2);
-        assert!(*ptr > 64);
-        *trie.add(curr).cast::<u16>().add(2) = 1;
-        if is_lf!(hash) {
-            break;
-        }
-    }
+    })();
 
     let mut total = 0;
 
