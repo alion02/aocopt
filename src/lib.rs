@@ -52,7 +52,7 @@ extern crate aoc_runner;
 
 pub mod day19;
 
-pub mod day18;
+// pub mod day18;
 
 // pub mod day17;
 
