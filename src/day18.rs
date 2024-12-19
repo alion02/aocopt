@@ -1,3 +1,5 @@
+use std::fmt::Write;
+
 use super::*;
 
 static LUT: [i8x16; 512] = unsafe {
@@ -153,7 +155,7 @@ unsafe fn inner2(s: &[u8]) -> &str {
         let mut i = 0;
         while i < goal.len() {
             if i % 9 == 8 {
-                goal[i] = -128;
+                goal[i] = -64;
             }
             if i / 9 == 1 {
                 goal[i] = -1;
@@ -190,9 +192,11 @@ unsafe fn inner2(s: &[u8]) -> &str {
         .add(69 * 72 / 8)
         .cast::<i8x32>()
         .write_unaligned(i8x32::from_array([
-            1, 0, 0, 0, 0, 0, 0, 0, -128, 1, 0, 0, 0, 0, 0, 0, 0, -128, -1, -1, -1, -1, -1, -1, -1, -1, -128, -1, -1,
-            -1, -1, -1,
+            1, 0, 0, 0, 0, 0, 0, 0, -128, 1, 0, 0, 0, 0, 0, 0, 0, -128, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+            -1, -1,
         ]));
+
+    // let mut prev_at_count = 0;
 
     loop {
         let chunk = ptr.read_unaligned();
@@ -286,6 +290,50 @@ unsafe fn inner2(s: &[u8]) -> &str {
             saved_rsp = out(reg) _,
             ret = inout(reg) 0usize => ret,
         );
+
+        // let str = &mut String::new();
+        // let mut curr_at_count = 0;
+        // for y in 1..72 {
+        //     for x in 0..9 {
+        //         for bit_idx in 0..8 {
+        //             if x == 8 && bit_idx == 7 {
+        //                 continue;
+        //             }
+        //             let i = y * 9 + x;
+        //             let bit = 1 << bit_idx;
+        //             let front = *front.add(i) & bit != 0;
+        //             let map = *map.add(i) & bit != 0;
+        //             if front {
+        //                 curr_at_count += 1;
+        //             }
+        //             write!(
+        //                 str,
+        //                 "{}",
+        //                 if y * 72 + x * 8 + bit_idx == pos as _ {
+        //                     '+'
+        //                 } else if front && !map {
+        //                     '?'
+        //                 } else if front {
+        //                     '@'
+        //                 } else if map {
+        //                     '#'
+        //                 } else {
+        //                     '.'
+        //                 }
+        //             )
+        //             .unwrap();
+        //         }
+        //     }
+        //     writeln!(str).unwrap();
+        // }
+        // if curr_at_count > prev_at_count {
+        //     prev_at_count = curr_at_count;
+        //     println!(
+        //         "{str}coords:{}\n",
+        //         std::str::from_utf8_unchecked(std::slice::from_raw_parts(ptr.cast(), len))
+        //     );
+        // }
+
         if ret > 0 {
             return std::str::from_utf8_unchecked(std::slice::from_raw_parts(ptr.cast(), len));
         }
