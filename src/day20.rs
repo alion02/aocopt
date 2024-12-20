@@ -1,5 +1,3 @@
-use std::arch::x86_64::_mm256_testz_si256;
-
 use super::*;
 
 #[inline]
@@ -24,7 +22,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         "found \"{}\" at {i} in chunk {chunk:?}",
         s[i] as char,
     );
-    let mut dist = 1;
+    let mut cuts = 0;
     asm!(
         "mov word ptr[{map} + {i} * 2], 0",
         "cmp byte ptr[{ptr} + {i} + 1], {wall}",
@@ -38,6 +36,24 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         "ud2",
     "300:",
         "add {dist:e}, 1",
+        "lea {adj_dist:e}, [{dist:r} - 102]",
+        "mov word ptr[{map} + {i} * 2], {dist:x}",
+        "cmp word ptr[{map} + {i} * 2 + 4], {adj_dist:x}",
+        "jg 30f",
+        "inc {cuts:e}",
+    "30:",
+        "cmp word ptr[{map} + {i} * 2 + 568], {adj_dist:x}",
+        "jg 30f",
+        "inc {cuts:e}",
+    "30:",
+        "cmp word ptr[{map} + {i} * 2 - 4], {adj_dist:x}",
+        "jg 30f",
+        "inc {cuts:e}",
+    "30:",
+        "cmp word ptr[{map} + {i} * 2 - 568], {adj_dist:x}",
+        "jg 30f",
+        "inc {cuts:e}",
+    "30:",
         "ret",
     "200:", // right
         "add {i:e}, 1",
@@ -88,11 +104,13 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         ptr = in(reg) ptr,
         map = in(reg) map,
         i = inout(reg) i => _,
-        dist = inout(reg) dist,
+        dist = inout(reg) 0 => _,
+        adj_dist = out(reg) _,
+        cuts = inout(reg) cuts,
         wall = const b'#',
     );
 
-    dist
+    cuts
 }
 
 #[inline]
