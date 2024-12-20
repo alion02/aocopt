@@ -30,7 +30,9 @@ unsafe fn inner1(s: &[u8]) -> u32 {
             if *next == 0 {
                 len += 3;
                 *next = len;
-                *trie.byte_add(len as usize * 4) = [0; 6];
+                trie.byte_add(len as usize * 4)
+                    .cast::<u8x16>()
+                    .write_unaligned(Simd::splat(0));
             }
 
             hash = hash!(*ptr);
@@ -151,7 +153,9 @@ unsafe fn inner2(s: &[u8]) -> u64 {
             if *next == 0 {
                 len += 3;
                 *next = len;
-                *trie.byte_add(len as usize * 4) = [0; 6];
+                trie.byte_add(len as usize * 4)
+                    .cast::<u8x16>()
+                    .write_unaligned(Simd::splat(0));
             }
 
             hash = hash!(*ptr);
