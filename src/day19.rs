@@ -93,6 +93,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         "xor {seen:e}, {seen:e}",
         "xor {i:e}, {i:e}",
         "call 201b",
+        "add {ptr}, 39",
     "21:",
         "inc {ptr}",
         "cmp byte ptr[{ptr}], {lf}",
@@ -174,7 +175,7 @@ unsafe fn inner2(s: &[u8]) -> u64 {
     let mut total = 0;
 
     loop {
-        let mut end = 0;
+        let mut end = 40;
         while *ptr.add(end) != b'\n' {
             end += 1;
         }
