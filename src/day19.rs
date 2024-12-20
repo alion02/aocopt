@@ -168,99 +168,49 @@ unsafe fn inner2(s: &[u8]) -> u64 {
         }
     }
 
-    static mut SEEN: [u64x4; 16] = [Simd::from_array([0; 4]); 16];
+    static mut SEEN: [u64; 64] = [!0; 64];
+    let seen = &mut SEEN;
 
     let mut total = 0;
 
-    asm!(
-        "jmp 20f",
-
-    "203:",
-        "inc {i:e}",
-        "lea {node}, [{trie} + {tmp} * 4]",
-    "200:",
-        "cmp byte ptr[{node} + 4], 0",
-        "je 201f", // try continuing
-        "cmp qword ptr[{seen} + {i} * 8], -1",
-        "jne 205f", // memoized: add result and return
-        "cmp byte ptr[{ptr} + {i}], {lf}",
-        "je 202f", // success: add 1
-        // try finishing this pattern
-        "push {i}",
-        "push {node}",
-        "mov {node}, {trie}",
-        "call 201f",
-        "pop {node}",
-        "pop {i}",
-    "201:",
-        "push {i}",
-        "movzx {hash:e}, byte ptr[{ptr} + {i}]",
-        "pext {hash:e}, {hash:e}, {hash_mask:e}",
-        "sub {hash:e}, {hash_offset}",
-        "js 204f", // in the middle of a pattern but towel is done
-        "movzx {tmp:e}, word ptr[{node} + {hash} * 2]",
-        "test {tmp:e}, {tmp:e}",
-        "jne 203b", // continue
-        // dead end
-    "204:",
-        "pop {i}",
-        "mov qword ptr[{seen} + {i} * 8], {curr_total}",
-        "ret",
-    "205:",
-        "add {curr_total}, qword ptr[{seen} + {i} * 8 - 8]",
-        "pop {i}",
-        "ret",
-    "202:",
-        "inc {curr_total}",
-        "pop {i}",
-        "ret",
-
-    "20:",
-        "vmovdqa ymmword ptr[{seen}], {all_ones}",
-        "vmovdqa ymmword ptr[{seen} + 32], {all_ones}",
-        "vmovdqa ymmword ptr[{seen} + 64], {all_ones}",
-        "vmovdqa ymmword ptr[{seen} + 96], {all_ones}",
-        "vmovdqa ymmword ptr[{seen} + 128], {all_ones}",
-        "vmovdqa ymmword ptr[{seen} + 160], {all_ones}",
-        "vmovdqa ymmword ptr[{seen} + 192], {all_ones}",
-        "vmovdqa ymmword ptr[{seen} + 224], {all_ones}",
-        "vmovdqa ymmword ptr[{seen} + 256], {all_ones}",
-        "vmovdqa ymmword ptr[{seen} + 288], {all_ones}",
-        "vmovdqa ymmword ptr[{seen} + 320], {all_ones}",
-        "vmovdqa ymmword ptr[{seen} + 352], {all_ones}",
-        "vmovdqa ymmword ptr[{seen} + 384], {all_ones}",
-        "vmovdqa ymmword ptr[{seen} + 416], {all_ones}",
-        "vmovdqa ymmword ptr[{seen} + 448], {all_ones}",
-        "vmovdqa ymmword ptr[{seen} + 480], {all_ones}",
-        "mov {node}, {trie}",
-        "xor {i:e}, {i:e}",
-        "xor {curr_total:e}, {curr_total:e}",
-        "call 201b",
-        "add {total}, {curr_total}",
-    "21:",
-        "inc {ptr}",
-        "cmp byte ptr[{ptr}], {lf}",
-        "jne 21b",
-        "inc {ptr}",
-        "cmp {ptr}, {end}",
-        "jne 20b",
-    "22:",
-
-        seen = in(reg) &mut SEEN,
-        i = out(reg) _,
-        ptr = inout(reg) ptr => _,
-        end = in(reg) s.as_ptr_range().end,
-        hash = out(reg) _,
-        node = out(reg) _,
-        tmp = out(reg) _,
-        trie = in(reg) trie,
-        hash_mask = in(reg) 83,
-        hash_offset = const 10,
-        curr_total = out(reg) _,
-        total = inout(reg) total,
-        all_ones = in(ymm_reg) u64x4::splat(!0),
-        lf = const b'\n',
-    );
+    loop {
+        let mut end = 0;
+        while *ptr.add(end) != b'\n' {
+            end += 1;
+        }
+        *seen.get_unchecked_mut(end) = 1;
+        let mut i = end - 1;
+        loop {
+            let mut curr_total = 0;
+            let mut j = i;
+            let mut node = trie.cast::<u16>();
+            loop {
+                let hash = hash!(*ptr.add(j));
+                if (hash as i32) < 0 {
+                    break;
+                }
+                let next = *node.add(hash as _);
+                if next == 0 {
+                    break;
+                }
+                node = trie.byte_add(next as usize * 4).cast();
+                j += 1;
+                if *node.add(2) > 0 {
+                    curr_total += *seen.get_unchecked_mut(j);
+                }
+            }
+            *seen.get_unchecked_mut(i) = curr_total;
+            i = i.wrapping_sub(1);
+            if (i as isize) < 0 {
+                total += curr_total;
+                break;
+            }
+        }
+        ptr = ptr.add(end + 1);
+        if ptr == s.as_ptr_range().end {
+            break;
+        }
+    }
 
     total
 }
