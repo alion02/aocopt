@@ -180,7 +180,6 @@ unsafe fn inner2(s: &[u8]) -> u64 {
         }
         *seen.get_unchecked_mut(end) = 1;
         let mut i = end - 1;
-        let mut zero_in_a_row = 0;
         for _ in 0..8 {
             let mut curr_total = 0;
             let mut j = i;
@@ -202,14 +201,6 @@ unsafe fn inner2(s: &[u8]) -> u64 {
             }
 
             *seen.get_unchecked_mut(i) = curr_total;
-            if curr_total == 0 {
-                zero_in_a_row += 1;
-                if zero_in_a_row >= 8 {
-                    break;
-                }
-            } else {
-                zero_in_a_row = 0;
-            }
             i = i.wrapping_sub(1);
             if (i as isize) < 0 {
                 total += curr_total;
@@ -234,14 +225,6 @@ unsafe fn inner2(s: &[u8]) -> u64 {
             }
 
             *seen.get_unchecked_mut(i) = curr_total;
-            if curr_total == 0 {
-                zero_in_a_row += 1;
-                if zero_in_a_row >= 8 {
-                    break;
-                }
-            } else {
-                zero_in_a_row = 0;
-            }
             i = i.wrapping_sub(1);
             if (i as isize) < 0 {
                 total += curr_total;
