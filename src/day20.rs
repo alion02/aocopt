@@ -13,13 +13,17 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     let mut chunk;
     loop {
         i += 32;
-        chunk = ptr.add(32).cast::<u8x32>().read_unaligned();
+        chunk = ptr.add(i).cast::<u8x32>().read_unaligned();
         if _mm256_testz_si256(chunk.into(), u8x32::splat(0x40).into()) == 0 {
             break;
         }
     }
-    i = i / 32 + _mm256_movemask_epi8((chunk << 1).into()).trailing_zeros() as usize;
-    assert!(s[i] == b'S' || s[i] == b'E', "{}", s[i]);
+    i += _mm256_movemask_epi8((chunk << 1).into()).trailing_zeros() as usize;
+    assert!(
+        s[i] == b'S' || s[i] == b'E',
+        "found \"{}\" at {i} in chunk {chunk:?}",
+        s[i] as char,
+    );
     let mut dist = 1;
     asm!(
         "mov word ptr[{map} + {i} * 2], 0",
