@@ -26,15 +26,15 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         let mut curr = 0;
         loop {
             ptr = ptr.add(1);
-            let next = trie.add(curr).cast::<u16>().add(hash as usize);
+            let next = trie.byte_add(curr).cast::<u16>().add(hash as usize);
             if *next == 0 {
-                len += 1;
+                len += 3;
                 *next = len;
-                *trie.add(len as usize) = [0; 6];
+                *trie.byte_add(len as usize * 4) = [0; 6];
             }
 
             hash = hash!(*ptr);
-            curr = *next as usize;
+            curr = *next as usize * 4;
             if (hash as i32) < 0 {
                 break;
             }
@@ -42,7 +42,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
 
         ptr = ptr.add(2);
         assert!(*ptr > 64);
-        *trie.add(curr).cast::<u16>().add(2) = 1;
+        *trie.byte_add(curr).cast::<u16>().add(2) = 1;
         if is_lf!(hash) {
             break;
         }
@@ -50,46 +50,72 @@ unsafe fn inner1(s: &[u8]) -> u32 {
 
     let mut total = 0;
 
-    while ptr != s.as_ptr_range().end {
-        unsafe fn check_towel(seen: &mut u64, trie: *mut [u16; 6], ptr: *const u8, mut i: usize) -> u32 {
-            if *seen & 1 << i > 0 {
-                return 0;
-            }
+    asm!(
+        "mov {saved_rsp}, rsp",
+        "jmp 20f",
 
-            *seen |= 1 << i;
+    "203:",
+        "inc {i:e}",
+        "lea {node}, [{trie} + {tmp} * 4]",
+    "200:",
+        "cmp byte ptr[{node} + 4], 0",
+        "je 201f", // try continuing
+        "bts {seen}, {i}",
+        "jc 201f", // memoized: can't finish pattern here
+        "cmp byte ptr[{ptr} + {i}], {lf}",
+        "je 202f", // success
+        // try finishing this pattern
+        "push {i}",
+        "push {node}",
+        "mov {node}, {trie}",
+        "call 201f",
+        "pop {node}",
+        "pop {i}",
+    "201:",
+        "movzx {hash:e}, byte ptr[{ptr} + {i}]",
+        "pext {hash:e}, {hash:e}, {hash_mask:e}",
+        "sub {hash:e}, {hash_offset}",
+        "js 204f", // in the middle of a pattern but towel is done
+        "movzx {tmp:e}, word ptr[{node} + {hash} * 2]",
+        "test {tmp:e}, {tmp:e}",
+        "jne 203b", // continue
+    "204:",
+        "ret", // dead end
 
-            let mut hash = hash!(*ptr.add(i));
-            if is_lf!(hash) {
-                return 1;
-            }
+    "202:",
+        "mov rsp, {saved_rsp}",
+        "inc {total:e}",
+        "lea {ptr}, [{ptr} + {i} + 1]",
+        "cmp {ptr}, {end}",
+        "je 22f",
+    "20:",
+        "mov {node}, {trie}",
+        "xor {seen:e}, {seen:e}",
+        "xor {i:e}, {i:e}",
+        "call 201b",
+    "21:",
+        "inc {ptr}",
+        "cmp byte ptr[{ptr}], {lf}",
+        "jne 21b",
+        "inc {ptr}",
+        "cmp {ptr}, {end}",
+        "jne 20b",
+    "22:",
 
-            let mut node = trie.cast::<u16>();
-
-            loop {
-                let next = *node.add(hash as usize);
-                if next == 0 {
-                    return 0;
-                }
-
-                i += 1;
-                hash = hash!(*ptr.add(i));
-                node = trie.add(next as usize).cast();
-
-                if *node.add(2) > 0 && check_towel(seen, trie, ptr, i) > 0 {
-                    return 1;
-                }
-                if is_lf!(hash) {
-                    return 0;
-                }
-            }
-        }
-
-        total += check_towel(&mut 0, trie, ptr, 0);
-        while *ptr != b'\n' {
-            ptr = ptr.add(1);
-        }
-        ptr = ptr.add(1);
-    }
+        saved_rsp = out(reg) _,
+        seen = out(reg) _,
+        i = out(reg) _,
+        ptr = inout(reg) ptr => _,
+        end = in(reg) s.as_ptr_range().end,
+        hash = out(reg) _,
+        node = out(reg) _,
+        tmp = out(reg) _,
+        trie = in(reg) trie,
+        hash_mask = in(reg) 83,
+        hash_offset = const 10,
+        total = inout(reg) total,
+        lf = const b'\n',
+    );
 
     total
 }
@@ -120,7 +146,7 @@ mod tests {
         let s = read_to_string("./inputs/19.txt").unwrap();
         let s = s.as_str();
 
-        assert_eq!(part1(s).to_string(), read_to_string("./outputs/19p1.txt").unwrap(),)
+        assert_eq!(part1(s).to_string(), read_to_string("./outputs/19p1.txt").unwrap(),);
     }
 
     #[test]
