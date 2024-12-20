@@ -1,8 +1,94 @@
+use std::arch::x86_64::_mm256_testz_si256;
+
 use super::*;
 
 #[inline]
 unsafe fn inner1(s: &[u8]) -> u32 {
-    0
+    static mut MAP: [i16; 142 * (141 + 40)] = [i16::MAX; 142 * (141 + 40)];
+    let map = &mut MAP;
+    map[142 * 20..142 * (141 + 20)].fill(i16::MAX);
+    let map = map.as_ptr().add(142 * 20);
+    let ptr = s.as_ptr();
+    let mut i = 0;
+    let mut chunk;
+    loop {
+        i += 32;
+        chunk = ptr.add(32).cast::<u8x32>().read_unaligned();
+        if _mm256_testz_si256(chunk.into(), u8x32::splat(0x40).into()) == 0 {
+            break;
+        }
+    }
+    i = i / 32 + _mm256_movemask_epi8((chunk << 1).into()).trailing_zeros() as usize;
+    assert!(s[i] == b'S' || s[i] == b'E', "{}", s[i]);
+    let mut dist = 1;
+    asm!(
+        "mov word ptr[{map} + {i} * 2], 0",
+        "cmp byte ptr[{ptr} + {i} + 1], {wall}",
+        "jne 200f", // right
+        "cmp byte ptr[{ptr} + {i} + 142], {wall}",
+        "jne 210f", // down
+        "cmp byte ptr[{ptr} + {i} - 1], {wall}",
+        "jne 220f", // left
+        "cmp byte ptr[{ptr} + {i} - 142], {wall}",
+        "jne 230f", // up
+        "ud2",
+    "300:",
+        "add {dist:e}, 1",
+        "ret",
+    "200:", // right
+        "add {i:e}, 1",
+        "call 300b",
+        "add {i:e}, 1",
+        "call 300b",
+        "cmp byte ptr[{ptr} + {i} + 1], {wall}",
+        "jne 200b", // right
+        "cmp byte ptr[{ptr} + {i} - 142], {wall}",
+        "jne 230f", // up
+        "cmp byte ptr[{ptr} + {i} + 142], {wall}",
+        "je 20f", // done
+    "210:", // down
+        "add {i:e}, 142",
+        "call 300b",
+        "add {i:e}, 142",
+        "call 300b",
+        "cmp byte ptr[{ptr} + {i} + 142], {wall}",
+        "jne 210b", // down
+        "cmp byte ptr[{ptr} + {i} + 1], {wall}",
+        "jne 200b", // right
+        "cmp byte ptr[{ptr} + {i} - 1], {wall}",
+        "je 20f", // done
+    "220:", // left
+        "add {i:e}, -1",
+        "call 300b",
+        "add {i:e}, -1",
+        "call 300b",
+        "cmp byte ptr[{ptr} + {i} - 1], {wall}",
+        "jne 220b", // left
+        "cmp byte ptr[{ptr} + {i} + 142], {wall}",
+        "jne 210b", // down
+        "cmp byte ptr[{ptr} + {i} - 142], {wall}",
+        "je 20f", // done
+    "230:", // up
+        "add {i:e}, -142",
+        "call 300b",
+        "add {i:e}, -142",
+        "call 300b",
+        "cmp byte ptr[{ptr} + {i} - 142], {wall}",
+        "jne 230b", // up
+        "cmp byte ptr[{ptr} + {i} - 1], {wall}",
+        "jne 220b", // left
+        "cmp byte ptr[{ptr} + {i} + 1], {wall}",
+        "jne 200b", // right
+        // done
+    "20:",
+        ptr = in(reg) ptr,
+        map = in(reg) map,
+        i = inout(reg) i => _,
+        dist = inout(reg) dist,
+        wall = const b'#',
+    );
+
+    dist
 }
 
 #[inline]
