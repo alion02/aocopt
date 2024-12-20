@@ -180,7 +180,7 @@ unsafe fn inner2(s: &[u8]) -> u64 {
         }
         *seen.get_unchecked_mut(end) = 1;
         let mut i = end - 1;
-        for _ in 0..8 {
+        loop {
             let mut curr_total = 0;
             let mut j = i;
             let mut node = trie.cast::<u16>();
@@ -199,31 +199,6 @@ unsafe fn inner2(s: &[u8]) -> u64 {
                     curr_total += *seen.get_unchecked_mut(j);
                 }
             }
-
-            *seen.get_unchecked_mut(i) = curr_total;
-            i = i.wrapping_sub(1);
-            if (i as isize) < 0 {
-                total += curr_total;
-                break;
-            }
-        }
-        loop {
-            let mut curr_total = 0;
-            let mut j = i;
-            let mut node = trie.cast::<u16>();
-            loop {
-                let hash = hash!(*ptr.add(j));
-                let next = *node.add(hash as _);
-                if next == 0 {
-                    break;
-                }
-                node = trie.byte_add(next as usize * 4).cast();
-                j += 1;
-                if *node.add(2) > 0 {
-                    curr_total += *seen.get_unchecked_mut(j);
-                }
-            }
-
             *seen.get_unchecked_mut(i) = curr_total;
             i = i.wrapping_sub(1);
             if (i as isize) < 0 {
