@@ -2,9 +2,9 @@ use super::*;
 
 #[inline]
 unsafe fn inner1(s: &[u8]) -> u32 {
-    static mut MAP: [i16; 142 * (141 + 40)] = [-1; 142 * (141 + 40)];
+    static mut MAP: [i16; 142 * (141 + 40)] = [i16::MAX; 142 * (141 + 40)];
     let map = &mut MAP;
-    map[142 * 20..142 * (141 + 20)].fill(-1);
+    map[142 * 20..142 * (141 + 20)].fill(i16::MAX);
     let map = map.as_ptr().add(142 * 20);
     let ptr = s.as_ptr();
     let mut i = 0;
@@ -24,7 +24,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     );
     let mut cuts = 0;
     asm!(
-        "mov word ptr[{map} + {i} * 2], 100",
+        "mov word ptr[{map} + {i} * 2], 0",
         "cmp byte ptr[{ptr} + {i} + 1], {wall}",
         "jne 200f", // right
         "cmp byte ptr[{ptr} + {i} + 142], {wall}",
@@ -36,16 +36,24 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         "ud2",
     "300:",
         "add {dist:e}, 1",
-        "lea {adj_dist:e}, [{dist:r} - 101]",
+        "lea {adj_dist:e}, [{dist:r} - 102]",
         "mov word ptr[{map} + {i} * 2], {dist:x}",
         "cmp word ptr[{map} + {i} * 2 + 4], {adj_dist:x}",
-        "adc {cuts:e}, 0",
+        "jg 30f",
+        "inc {cuts:e}",
+    "30:",
         "cmp word ptr[{map} + {i} * 2 + 568], {adj_dist:x}",
-        "adc {cuts:e}, 0",
+        "jg 30f",
+        "inc {cuts:e}",
+    "30:",
         "cmp word ptr[{map} + {i} * 2 - 4], {adj_dist:x}",
-        "adc {cuts:e}, 0",
+        "jg 30f",
+        "inc {cuts:e}",
+    "30:",
         "cmp word ptr[{map} + {i} * 2 - 568], {adj_dist:x}",
-        "adc {cuts:e}, 0",
+        "jg 30f",
+        "inc {cuts:e}",
+    "30:",
         "ret",
     "200:", // right
         "add {i:e}, 1",
@@ -96,7 +104,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         ptr = in(reg) ptr,
         map = in(reg) map,
         i = inout(reg) i => _,
-        dist = inout(reg) 100 => _,
+        dist = inout(reg) 0 => _,
         adj_dist = out(reg) _,
         cuts = inout(reg) cuts,
         wall = const b'#',
