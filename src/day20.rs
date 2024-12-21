@@ -151,6 +151,27 @@ unsafe fn inner2(s: &[u8]) -> u32 {
             i += reserved;
             y += 1;
         }
+
+        // let mut i = 0;
+        // while i < 39 {
+        //     let mut j = i + 1;
+        //     while j < 39 {
+        //         let mut a = 0;
+        //         loop {
+        //             if penalties[i * 16 + a] != penalties[j * 16 + a] {
+        //                 break;
+        //             }
+        //             a += 1;
+        //             if a == 16 {
+        //                 indices[j] = indices[i];
+        //                 // indices[74 - j] = indices[74 - i];
+        //                 break;
+        //             }
+        //         }
+        //         j += 1;
+        //     }
+        //     i += 1;
+        // }
         (transmute(penalties), indices, offsets)
     }
     static PENALTIES: [i16x16; 39] = unsafe { luts().0 };
@@ -173,6 +194,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         "vpsubw {vecdist}, {vecdist}, {vecneg1}",
         "mov word ptr[{ptr}], {dist:x}",
         "vpxor {cutsw}, {cutsw}, {cutsw}",
+        "vpaddw {penalties1}, {vecdist}, [rip + {penalties}+{idx23}]",
         "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx1}]",
         "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off1}]",
         "vpaddw {cutsw}, {cutsw}, {tmp}",
@@ -239,14 +261,12 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx22}]",
         "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off22}]",
         "vpaddw {cutsw}, {cutsw}, {tmp}",
-        "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx23}]",
-        "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off23}]",
+        "vpcmpgtw {tmp}, {penalties1}, [{ptr} + {off23}]",
         "vpaddw {cutsw}, {cutsw}, {tmp}",
         "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx24}]",
         "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off24}]",
         "vpaddw {cutsw}, {cutsw}, {tmp}",
-        "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx25}]",
-        "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off25}]",
+        "vpcmpgtw {tmp}, {penalties1}, [{ptr} + {off25}]",
         "vpaddw {cutsw}, {cutsw}, {tmp}",
         "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx26}]",
         "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off26}]",
@@ -254,8 +274,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx27}]",
         "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off27}]",
         "vpaddw {cutsw}, {cutsw}, {tmp}",
-        "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx28}]",
-        "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off28}]",
+        "vpcmpgtw {tmp}, {penalties1}, [{ptr} + {off28}]",
         "vpaddw {cutsw}, {cutsw}, {tmp}",
         "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx29}]",
         "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off29}]",
@@ -263,8 +282,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx30}]",
         "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off30}]",
         "vpaddw {cutsw}, {cutsw}, {tmp}",
-        "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx31}]",
-        "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off31}]",
+        "vpcmpgtw {tmp}, {penalties1}, [{ptr} + {off31}]",
         "vpaddw {cutsw}, {cutsw}, {tmp}",
         "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx32}]",
         "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off32}]",
@@ -272,8 +290,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx33}]",
         "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off33}]",
         "vpaddw {cutsw}, {cutsw}, {tmp}",
-        "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx34}]",
-        "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off34}]",
+        "vpcmpgtw {tmp}, {penalties1}, [{ptr} + {off34}]",
         "vpaddw {cutsw}, {cutsw}, {tmp}",
         "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx35}]",
         "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off35}]",
@@ -281,8 +298,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx36}]",
         "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off36}]",
         "vpaddw {cutsw}, {cutsw}, {tmp}",
-        "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx37}]",
-        "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off37}]",
+        "vpcmpgtw {tmp}, {penalties1}, [{ptr} + {off37}]",
         "vpaddw {cutsw}, {cutsw}, {tmp}",
         "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx38}]",
         "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off38}]",
@@ -290,8 +306,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx39}]",
         "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off39}]",
         "vpaddw {cutsw}, {cutsw}, {tmp}",
-        "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx40}]",
-        "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off40}]",
+        "vpcmpgtw {tmp}, {penalties1}, [{ptr} + {off40}]",
         "vpaddw {cutsw}, {cutsw}, {tmp}",
         "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx41}]",
         "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off41}]",
@@ -299,8 +314,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx42}]",
         "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off42}]",
         "vpaddw {cutsw}, {cutsw}, {tmp}",
-        "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx43}]",
-        "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off43}]",
+        "vpcmpgtw {tmp}, {penalties1}, [{ptr} + {off43}]",
         "vpaddw {cutsw}, {cutsw}, {tmp}",
         "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx44}]",
         "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off44}]",
@@ -308,8 +322,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx45}]",
         "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off45}]",
         "vpaddw {cutsw}, {cutsw}, {tmp}",
-        "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx46}]",
-        "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off46}]",
+        "vpcmpgtw {tmp}, {penalties1}, [{ptr} + {off46}]",
         "vpaddw {cutsw}, {cutsw}, {tmp}",
         "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx47}]",
         "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off47}]",
@@ -317,8 +330,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx48}]",
         "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off48}]",
         "vpaddw {cutsw}, {cutsw}, {tmp}",
-        "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx49}]",
-        "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off49}]",
+        "vpcmpgtw {tmp}, {penalties1}, [{ptr} + {off49}]",
         "vpaddw {cutsw}, {cutsw}, {tmp}",
         "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx50}]",
         "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off50}]",
@@ -326,8 +338,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx51}]",
         "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off51}]",
         "vpaddw {cutsw}, {cutsw}, {tmp}",
-        "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx52}]",
-        "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off52}]",
+        "vpcmpgtw {tmp}, {penalties1}, [{ptr} + {off52}]",
         "vpaddw {cutsw}, {cutsw}, {tmp}",
         "vpaddw {tmp}, {vecdist}, [rip + {penalties}+{idx53}]",
         "vpcmpgtw {tmp}, {tmp}, [{ptr} + {off53}]",
@@ -456,6 +467,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         vecdist = inout(ymm_reg) i16x16::splat(0) => _,
         vecneg1 = in(ymm_reg) i16x16::splat(-1),
         penalties = sym PENALTIES,
+        penalties1 = out(ymm_reg) _,
         off1 = const OFFSETS[0],
         off2 = const OFFSETS[1],
         off3 = const OFFSETS[2],
@@ -555,34 +567,24 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         idx22 = const INDICES[21],
         idx23 = const INDICES[22],
         idx24 = const INDICES[23],
-        idx25 = const INDICES[24],
         idx26 = const INDICES[25],
         idx27 = const INDICES[26],
-        idx28 = const INDICES[27],
         idx29 = const INDICES[28],
         idx30 = const INDICES[29],
-        idx31 = const INDICES[30],
         idx32 = const INDICES[31],
         idx33 = const INDICES[32],
-        idx34 = const INDICES[33],
         idx35 = const INDICES[34],
         idx36 = const INDICES[35],
-        idx37 = const INDICES[36],
         idx38 = const INDICES[37],
         idx39 = const INDICES[38],
-        idx40 = const INDICES[39],
         idx41 = const INDICES[40],
         idx42 = const INDICES[41],
-        idx43 = const INDICES[42],
         idx44 = const INDICES[43],
         idx45 = const INDICES[44],
-        idx46 = const INDICES[45],
         idx47 = const INDICES[46],
         idx48 = const INDICES[47],
-        idx49 = const INDICES[48],
         idx50 = const INDICES[49],
         idx51 = const INDICES[50],
-        idx52 = const INDICES[51],
         idx53 = const INDICES[52],
         idx54 = const INDICES[53],
         idx55 = const INDICES[54],
