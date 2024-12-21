@@ -27,15 +27,18 @@ use std::{
 
 #[allow(unused)]
 macro_rules! black_box {
-    ($thing:expr) => {{
-        let mut thing = $thing;
-        asm!(
-            "/*{t}*/",
-            t = inout(reg) thing,
-            options(pure, nomem, preserves_flags, nostack)
-        );
-        thing
-    }};
+    ($thing:expr) => {
+        #[allow(asm_sub_register)]
+        {
+            let mut thing = $thing;
+            asm!(
+                "/*{t}*/",
+                t = inout(reg) thing,
+                options(pure, nomem, preserves_flags, nostack)
+            );
+            thing
+        }
+    };
 }
 
 #[macro_use]

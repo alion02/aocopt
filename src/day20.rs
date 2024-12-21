@@ -17,11 +17,6 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         }
     }
     i += _mm256_movemask_epi8((chunk << 1).into()).trailing_zeros() as usize;
-    assert!(
-        s[i] == b'S' || s[i] == b'E',
-        "found \"{}\" at {i} in chunk {chunk:?}",
-        s[i] as char,
-    );
     let mut cuts = 0;
     asm!(
         "mov word ptr[{map} + {i} * 2], 100",
