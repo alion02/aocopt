@@ -1043,18 +1043,39 @@ static SRC_LUT_P2: [u64; 1000] = [
 
 macro_rules! make_lut {
     ($src:expr, $ty:ty) => {{
-        let mut dst = [0; 1024];
+        let mut dst = [0; 1 << 24 | 1 << 10];
         let mut d1 = 0;
         while d1 < 10 {
             let mut d2 = 0;
             while d2 < 10 {
                 let mut d3 = 0;
                 while d3 < 10 {
+                    let mut d4 = 0;
+                    while d4 < 10 {
+                        let mut d5 = 0;
+                        while d5 < 10 {
+                            let mut d6 = 0;
+                            while d6 < 10 {
+                                let idx = d1 * (1 << 0)
+                                    + d2 * (1 << 4)
+                                    + d3 * (1 << 8)
+                                    + d4 * (1 << 12)
+                                    + d5 * (1 << 16)
+                                    + d6 * (1 << 20);
+                                let code1 = d1 * 100 + d2 * 10 + d3;
+                                let code2 = d4 * 100 + d5 * 10 + d6;
+                                dst[idx as usize] = $src[code1] * code1 as $ty + $src[code2] * code2 as $ty;
+                                d6 += 1;
+                            }
+                            d5 += 1;
+                        }
+                        d4 += 1;
+                    }
                     let idx = u32::from_ne_bytes([b'0' + d1 as u8, b'0' + d2 as u8, b'0' + d3 as u8, b'A'])
                         .wrapping_mul(2260763904)
                         >> 22;
                     let code = d1 * 100 + d2 * 10 + d3;
-                    dst[idx as usize] = $src[code] * code as $ty;
+                    dst[1 << 24 | idx as usize] = $src[code] * code as $ty;
                     d3 += 1;
                 }
                 d2 += 1;
@@ -1068,49 +1089,25 @@ macro_rules! make_lut {
 #[inline]
 #[repr(align(64))]
 unsafe fn inner1(s: &[u8]) -> u32 {
-    static LUT: [u32; 1024] = make_lut!(SRC_LUT_P1, u32);
+    static LUT: [u32; 1 << 24 | 1 << 10] = make_lut!(SRC_LUT_P1, u32);
     let ptr = s.as_ptr();
-    let len = s.len();
-    let mut sum = 0;
-    asm!(
-    "20:",
-        "imul {idx:e}, [{ptr} + {len} - 5], 2260763904",
-        "shr {idx:e}, 22",
-        "add {sum:e}, [{lut} + {idx} * 4]",
-        "add {len:e}, -5",
-        "jne 20b",
-        idx = out(reg) _,
-        sum = inout(reg) sum,
-        len = inout(reg) len => _,
-        ptr = in(reg) ptr,
-        lut = in(reg) &LUT,
-        options(nostack),
-    );
-    sum
+    LUT.get_unchecked(_pext_u64(ptr.add(0).cast::<u64>().read_unaligned(), 0x0F0F0F00000F0F0F) as usize)
+        + LUT.get_unchecked(_pext_u64(ptr.add(10).cast::<u64>().read_unaligned(), 0x0F0F0F00000F0F0F) as usize)
+        + LUT.get_unchecked(
+            (ptr.add(20).cast::<u32>().read_unaligned().wrapping_mul(2260763904) as usize >> 22) + (1 << 24),
+        )
 }
 
 #[inline]
 #[repr(align(64))]
 unsafe fn inner2(s: &[u8]) -> u64 {
-    static LUT: [u64; 1024] = make_lut!(SRC_LUT_P2, u64);
+    static LUT: [u64; 1 << 24 | 1 << 10] = make_lut!(SRC_LUT_P2, u64);
     let ptr = s.as_ptr();
-    let len = s.len();
-    let mut sum = 0;
-    asm!(
-    "20:",
-        "imul {idx:e}, [{ptr} + {len} - 5], 2260763904",
-        "shr {idx:e}, 22",
-        "add {sum}, [{lut} + {idx} * 8]",
-        "add {len:e}, -5",
-        "jne 20b",
-        idx = out(reg) _,
-        sum = inout(reg) sum,
-        len = inout(reg) len => _,
-        ptr = in(reg) ptr,
-        lut = in(reg) &LUT,
-        options(nostack),
-    );
-    sum
+    LUT.get_unchecked(_pext_u64(ptr.add(0).cast::<u64>().read_unaligned(), 0x0F0F0F00000F0F0F) as usize)
+        + LUT.get_unchecked(_pext_u64(ptr.add(10).cast::<u64>().read_unaligned(), 0x0F0F0F00000F0F0F) as usize)
+        + LUT.get_unchecked(
+            (ptr.add(20).cast::<u32>().read_unaligned().wrapping_mul(2260763904) as usize >> 22) + (1 << 24),
+        )
 }
 
 #[inline]
