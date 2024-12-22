@@ -1081,12 +1081,24 @@ unsafe fn inner1(s: &[u8]) -> u32 {
 #[repr(align(64))]
 unsafe fn inner2(s: &[u8]) -> u64 {
     static LUT: [u64; 1024] = make_lut!(SRC_LUT_P2, u64);
-    let ptr = s.as_ptr().cast::<u32>();
-    LUT.get_unchecked(ptr.byte_add(0).read_unaligned().wrapping_mul(2260763904) as usize >> 22)
-        + LUT.get_unchecked(ptr.byte_add(5).read_unaligned().wrapping_mul(2260763904) as usize >> 22)
-        + LUT.get_unchecked(ptr.byte_add(10).read_unaligned().wrapping_mul(2260763904) as usize >> 22)
-        + LUT.get_unchecked(ptr.byte_add(15).read_unaligned().wrapping_mul(2260763904) as usize >> 22)
-        + LUT.get_unchecked(ptr.byte_add(20).read_unaligned().wrapping_mul(2260763904) as usize >> 22)
+    let ptr = s.as_ptr();
+    let len = s.len();
+    let mut sum = 0;
+    asm!(
+    "20:",
+        "imul {idx:e}, [{ptr} + {len} - 5], 2260763904",
+        "shr {idx:e}, 22",
+        "add {sum}, [{lut} + {idx} * 8]",
+        "add {len:e}, -5",
+        "jne 20b",
+        idx = out(reg) _,
+        sum = inout(reg) sum,
+        len = inout(reg) len => _,
+        ptr = in(reg) ptr,
+        lut = in(reg) &LUT,
+        options(nostack),
+    );
+    sum
 }
 
 #[inline]
