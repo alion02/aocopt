@@ -69,7 +69,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
             }
         }
         monkey_id += 1;
-        if ptr > end {
+        if ptr >= end {
             if finishing {
                 break;
             }
@@ -77,7 +77,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
             let scratch = (&raw mut SCRATCH).cast::<u8x16>();
             scratch.write(end.read_unaligned());
             ptr = scratch.byte_offset(ptr.byte_offset_from(end));
-            end = scratch.byte_add(15);
+            end = scratch.byte_add(16);
         }
     }
     *bananas.iter().max().unwrap_unchecked() as u32
