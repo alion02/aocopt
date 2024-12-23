@@ -13,7 +13,8 @@ unsafe fn inner2(s: &[u8]) -> u32 {
     let mut end = r.end.sub(16).cast::<u8x16>();
     let mut ptr = r.start.cast::<u8x16>();
     let mut bananas = [0u16; 19usize.pow(4)];
-    let mut last_sold = [0u16; 19usize.pow(4)];
+    static mut LAST_SOLD: [[u16; 130321]; 8] = [[0u16; 19usize.pow(4)]; 8];
+    let last_sold = &mut LAST_SOLD;
     let mut monkey_id = 1;
     static mut SCRATCH: u8x32 = Simd::from_array([b'\n'; 32]);
     let mut finishing = false;
@@ -60,6 +61,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         step!();
         step!();
         step!();
+        let last_sold = &mut last_sold[monkey_id as usize % 8];
         for _ in 0..1997 {
             step!();
             let last_sold = last_sold.get_unchecked_mut(seq_id as usize);
