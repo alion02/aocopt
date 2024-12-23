@@ -42,32 +42,46 @@ unsafe fn inner2(s: &[u8]) -> u32 {
             u16x8::from_array([10000, 1, 10000, 1, 10000, 1, 10000, 1]).into(),
         )
         .into();
-        let mut state = chunk[3];
-        let mut seq_id = 0;
-        let ten = black_box!(10);
-        let len = black_box!(19u32.pow(4));
+        let mut state = chunk;
+        let mut history = u32x4::splat(0);
         let mut prev;
-        let mut curr = state % ten;
+        let mut curr = state % Simd::splat(10);
         macro_rules! step {
             () => {{
-                state ^= state << 6 & 0xFFFFFF;
+                state ^= state << 6 & Simd::splat(0xFFFFFF);
                 state ^= state >> 5;
-                state ^= state << 11 & 0xFFFFFF;
+                state ^= state << 11 & Simd::splat(0xFFFFFF);
                 prev = curr;
-                curr = state % ten;
-                seq_id = seq_id * 19 % len + 9 + curr - prev;
+                curr = state % Simd::splat(10);
+                let diff = Simd::splat(9) + curr - prev;
+                history <<= 8;
+                history = transmute(
+                    mask8x16::from_bitmask(0b1110111011101110)
+                        .select(transmute::<_, u8x16>(history), transmute::<_, u8x16>(diff)),
+                );
+                let chunk = _mm_maddubs_epi16(
+                    history.into(),
+                    u8x16::from_array([19, 1, 19, 1, 19, 1, 19, 1, 19, 1, 19, 1, 19, 1, 19, 1]).into(),
+                );
+                let chunk: u32x4 = _mm_madd_epi16(
+                    chunk,
+                    u16x8::from_array([19 * 19, 1, 19 * 19, 1, 19 * 19, 1, 19 * 19, 1]).into(),
+                )
+                .into();
+                chunk
             }};
         }
+
         step!();
         step!();
         step!();
         let last_sold = &mut last_sold[monkey_id as usize % 8];
         for _ in 0..1997 {
-            step!();
+            let seq_id = step!()[3];
             let last_sold = last_sold.get_unchecked_mut(seq_id as usize);
             if *last_sold != monkey_id {
                 *last_sold = monkey_id;
-                *bananas.get_unchecked_mut(seq_id as usize) += curr as u16;
+                *bananas.get_unchecked_mut(seq_id as usize) += curr[3] as u16;
             }
         }
         monkey_id += 1;
@@ -111,7 +125,7 @@ mod tests {
 
     #[test]
     fn p2() {
-        let s = read_to_string("./inputs/22.txt").unwrap();
+        let s = read_to_string("./inputs/22shuf.txt").unwrap();
         let s = s.as_str();
 
         assert_eq!(part2(s).to_string(), read_to_string("./outputs/22p2.txt").unwrap(),);
