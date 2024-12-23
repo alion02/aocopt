@@ -75,10 +75,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
                 curr = state % Simd::splat(10);
                 let diff = Simd::splat(9) + curr - prev;
                 history <<= 8;
-                history = transmute(
-                    mask8x32::from_bitmask(0b11101110111011101110111011101110)
-                        .select(transmute::<_, u8x32>(history), transmute::<_, u8x32>(diff)),
-                );
+                history |= diff;
                 let chunk = _mm256_maddubs_epi16(
                     history.into(),
                     u8x32::from_array([
