@@ -51,7 +51,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
                 state ^= state >> 5;
                 state ^= state << 11 & 0xFFFFFF;
                 prev = curr;
-                curr = state % 10;
+                curr = state % black_box!(10);
                 seq_id = seq_id * 19 % 19u32.pow(4) + 9 + curr - prev;
             }};
         }
