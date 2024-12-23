@@ -87,22 +87,22 @@ unsafe fn inner2(s: &[u8]) -> u32 {
                 let chunk: u32x8 = _mm256_madd_epi16(
                     chunk,
                     u16x16::from_array([
-                        19 * 19,
-                        1,
-                        19 * 19,
-                        1,
-                        19 * 19,
-                        1,
-                        19 * 19,
-                        1,
-                        19 * 19,
-                        1,
-                        19 * 19,
-                        1,
-                        19 * 19,
-                        1,
-                        19 * 19,
-                        1,
+                        19 * 19 * 2,
+                        1 * 2,
+                        19 * 19 * 2,
+                        1 * 2,
+                        19 * 19 * 2,
+                        1 * 2,
+                        19 * 19 * 2,
+                        1 * 2,
+                        19 * 19 * 2,
+                        1 * 2,
+                        19 * 19 * 2,
+                        1 * 2,
+                        19 * 19 * 2,
+                        1 * 2,
+                        19 * 19 * 2,
+                        1 * 2,
                     ])
                     .into(),
                 )
@@ -119,10 +119,10 @@ unsafe fn inner2(s: &[u8]) -> u32 {
             for i in 0..8 {
                 let last_sold = &mut last_sold[i];
                 let seq_id = seq_ids[i] as usize;
-                let last_sold = last_sold.get_unchecked_mut(seq_id);
+                let last_sold = last_sold.as_mut_ptr().byte_add(seq_id);
                 if likely(*last_sold != monkey_id) {
                     *last_sold = monkey_id;
-                    *bananas.get_unchecked_mut(seq_id) += curr[i] as u16;
+                    *bananas.as_mut_ptr().byte_add(seq_id) += curr[i] as u16;
                 }
             }
         }
