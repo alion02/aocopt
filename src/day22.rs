@@ -120,7 +120,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
                 let last_sold = &mut last_sold[i];
                 let seq_id = seq_ids[i] as usize;
                 let last_sold = last_sold.get_unchecked_mut(seq_id);
-                if *last_sold != monkey_id {
+                if likely(*last_sold != monkey_id) {
                     *last_sold = monkey_id;
                     *bananas.get_unchecked_mut(seq_id) += curr[i] as u16;
                 }
