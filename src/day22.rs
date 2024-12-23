@@ -160,7 +160,7 @@ mod tests {
 
     #[test]
     fn p2() {
-        let s = read_to_string("./inputs/22shuf.txt").unwrap();
+        let s = read_to_string("./inputs/22.txt").unwrap();
         let s = s.as_str();
 
         assert_eq!(part2(s).to_string(), read_to_string("./outputs/22p2.txt").unwrap(),);
