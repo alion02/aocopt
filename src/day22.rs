@@ -44,7 +44,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
         let mut state = chunk[3];
         let mut seq_id = 0;
         let mut prev;
-        let mut curr = state % 10;
+        let mut curr = state % black_box!(10);
         macro_rules! step {
             () => {{
                 state ^= state << 6 & 0xFFFFFF;

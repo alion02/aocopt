@@ -35,7 +35,7 @@ use std::{
 
 #[allow(unused)]
 macro_rules! black_box {
-    ($thing:expr) => {
+    ($thing:expr) => {{
         #[allow(asm_sub_register)]
         {
             let mut thing = $thing;
@@ -46,7 +46,7 @@ macro_rules! black_box {
             );
             thing
         }
-    };
+    }};
 }
 
 #[macro_use]
