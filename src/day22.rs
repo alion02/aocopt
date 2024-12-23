@@ -19,9 +19,10 @@ unsafe fn inner2(s: &[u8]) -> u32 {
     static mut SCRATCH: u8x32 = Simd::from_array([b'\n'; 32]);
     let mut finishing = false;
     let mut done = false;
-    while !done {
+    loop {
         let mut state = u32x8::splat(0);
-        for i in 0..8 {
+        let mut i = 7;
+        loop {
             let chunk = ptr.read_unaligned() - Simd::splat(b'0');
             let mask = _mm_movemask_epi8(chunk.into()) as u32;
             let len = mask.trailing_zeros() as usize;
@@ -56,6 +57,10 @@ unsafe fn inner2(s: &[u8]) -> u32 {
                 scratch.write(end.read_unaligned());
                 ptr = scratch.byte_offset(ptr.byte_offset_from(end));
                 end = scratch.byte_add(16);
+            }
+            i = i.wrapping_sub(1);
+            if i == !0 {
+                break;
             }
         }
         let mut history = u32x8::splat(0);
@@ -124,7 +129,10 @@ unsafe fn inner2(s: &[u8]) -> u32 {
                 }
             }
         }
-        monkey_id += 8;
+        monkey_id += 1;
+        if done {
+            break;
+        }
     }
     *bananas.iter().max().unwrap_unchecked() as u32
 }
@@ -155,7 +163,7 @@ mod tests {
 
     #[test]
     fn p2() {
-        let s = read_to_string("./inputs/22.txt").unwrap();
+        let s = read_to_string("./inputs/22shuf.txt").unwrap();
         let s = s.as_str();
 
         assert_eq!(part2(s).to_string(), read_to_string("./outputs/22p2.txt").unwrap(),);
