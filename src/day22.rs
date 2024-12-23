@@ -131,7 +131,7 @@ unsafe fn inner2(s: &[u8]) -> u32 {
             break;
         }
     }
-    *bananas.iter().max().unwrap_unchecked() as u32
+    bananas.iter().fold(0, |a, &b| a.max(b)) as u32
 }
 
 #[inline]
