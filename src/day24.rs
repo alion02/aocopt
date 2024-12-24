@@ -35,9 +35,9 @@ unsafe fn inner1(s: &[u8]) -> u64 {
     asm!(
     "20:",
         "cmp byte ptr[{ptr} + 5], {ascii_O}",
+        "vmovdqu {chunk}, [{ptr}]",
         "jne 21f",
         // OR
-        "vmovdqu {chunk}, [{ptr}]",
         "vpblendw {chunk}, {chunk}, [{ptr} + 2], 0xC0",
         "vpsubb {tmp}, {chunk}, {vec_ascii_am10}",
         "vpsubb {chunk}, {chunk}, {vec_ascii_0}",
@@ -53,9 +53,6 @@ unsafe fn inner1(s: &[u8]) -> u64 {
         "jne 20b",
         "jmp 40f",
     "21:",
-        "jl 22f",
-        // XOR
-        "vmovdqu {chunk}, [{ptr}]",
         "vpblendw {chunk}, {chunk}, [{ptr} + 3], 0xC0",
         "vpsubb {tmp}, {chunk}, {vec_ascii_am10}",
         "vpsubb {chunk}, {chunk}, {vec_ascii_0}",
@@ -65,6 +62,8 @@ unsafe fn inner1(s: &[u8]) -> u64 {
         "vpextrd {idx:e}, {chunk}, 3",
         "vpackusdw {chunk}, {chunk}, {chunk}",
         "vmovq [{graph} + {idx} * 8], {chunk}",
+        "jl 22f",
+        // XOR
         "mov byte ptr[{graph} + {idx} * 8 + 2], 4",
         "add {ptr}, 19",
         "cmp {ptr}, {end}",
@@ -72,16 +71,6 @@ unsafe fn inner1(s: &[u8]) -> u64 {
         "jmp 40f",
     "22:",
         // AND
-        "vmovdqu {chunk}, [{ptr}]",
-        "vpblendw {chunk}, {chunk}, [{ptr} + 3], 0xC0",
-        "vpsubb {tmp}, {chunk}, {vec_ascii_am10}",
-        "vpsubb {chunk}, {chunk}, {vec_ascii_0}",
-        "vpblendvb {chunk}, {tmp}, {chunk}, {tmp}",
-        "vpmaddubsw {chunk}, {mults_long}, {chunk}",
-        "vpmaddwd {chunk}, {chunk}, {mults_wide}",
-        "vpextrd {idx:e}, {chunk}, 3",
-        "vpackusdw {chunk}, {chunk}, {chunk}",
-        "vmovq [{graph} + {idx} * 8], {chunk}",
         "mov byte ptr[{graph} + {idx} * 8 + 2], 2",
         "add {ptr}, 19",
         "cmp {ptr}, {end}",
