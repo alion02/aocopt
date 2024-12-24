@@ -81,19 +81,17 @@ unsafe fn inner2(s: &str) -> String {
     let mut pass = HashSet::new();
     for &(a, b) in &connections {
         let intersection = graph[a].intersection(&graph[b]).collect::<Vec<_>>();
-        for i in 0..intersection.len() {
-            let mut clique = HashSet::from_iter([a, b]);
-            for &new in &intersection[i..] {
-                if clique.contains(new) {
-                    continue;
-                }
-                if graph[new].intersection(&clique).count() == clique.len() {
-                    clique.insert(new);
-                }
+        let mut clique = HashSet::from_iter([a, b]);
+        for &new in &intersection {
+            if clique.contains(new) {
+                continue;
             }
-            if clique.len() > pass.len() {
-                pass = clique;
+            if graph[new].intersection(&clique).count() == clique.len() {
+                clique.insert(new);
             }
+        }
+        if clique.len() > pass.len() {
+            pass = clique;
         }
     }
     let mut pass = pass.iter().collect::<Vec<_>>();
