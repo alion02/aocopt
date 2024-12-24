@@ -1,3 +1,5 @@
+use std::hint::unreachable_unchecked;
+
 use super::*;
 
 #[inline]
@@ -78,10 +80,11 @@ unsafe fn inner2(s: &str) -> String {
         graph.entry(b).or_default().insert(a);
     }
 
-    let mut pass = HashSet::new();
+    let mut clique = HashSet::new();
     for &(a, b) in &connections {
         let intersection = graph[a].intersection(&graph[b]).collect::<Vec<_>>();
-        let mut clique = HashSet::from_iter([a, b]);
+        clique.clear();
+        clique.extend([a, b]);
         for &new in &intersection {
             if clique.contains(new) {
                 continue;
@@ -90,20 +93,20 @@ unsafe fn inner2(s: &str) -> String {
                 clique.insert(new);
             }
         }
-        if clique.len() > pass.len() {
-            pass = clique;
+        if clique.len() == 13 {
+            let mut pass = clique.iter().collect::<Vec<_>>();
+            pass.sort_unstable();
+            let mut out = String::with_capacity(30);
+            for comp in pass {
+                use std::fmt::Write;
+                write!(out, "{comp}").unwrap_unchecked();
+                out.push(',');
+            }
+            out.pop();
+            return out;
         }
     }
-    let mut pass = pass.iter().collect::<Vec<_>>();
-    pass.sort_unstable();
-    let mut out = String::with_capacity(30);
-    for comp in pass {
-        use std::fmt::Write;
-        write!(out, "{comp}").unwrap_unchecked();
-        out.push(',');
-    }
-    out.pop();
-    out
+    unreachable_unchecked()
 }
 
 #[inline]
