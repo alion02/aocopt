@@ -93,38 +93,73 @@ unsafe fn inner1(s: &[u8]) -> u64 {
         options(nostack),
     );
 
-    let mut res = 0;
+    let mut total = 0;
     let c1 = b'z';
     for c2 in (b'0'..b'4' + 1).rev() {
         for c3 in (b'0'..if c2 == b'4' { b'5' } else { b'9' } + 1).rev() {
             let idx = (c1 - b'a' + 10) as u32 * 36 * 36 + (c2 - b'0') as u32 * 36 + (c3 - b'0') as u32;
-            unsafe fn value_of(graph: &mut [Node; 36 * 36 * 36], idx: usize) -> u64 {
-                let &mut Node {
-                    a: a_1,
-                    ctrl,
-                    _padding1,
-                    b: b_1,
-                    _padding2,
-                } = graph.get_unchecked_mut(idx);
-                if ctrl < 2 {
-                    ctrl as u64
-                } else {
-                    let a = value_of(graph, a_1 as usize);
-                    let b = value_of(graph, b_1 as usize);
-                    let res = match ctrl.cmp(&3) {
-                        std::cmp::Ordering::Less => a & b,
-                        std::cmp::Ordering::Equal => a | b,
-                        std::cmp::Ordering::Greater => a ^ b,
-                    };
-                    graph.get_unchecked_mut(idx).ctrl = res as u8;
-                    res
-                }
-            }
-            res <<= 1;
-            res |= value_of(graph, idx as usize);
+            let res: u64;
+            asm!(
+                "call 30f",
+                "jmp 40f",
+            "20:",
+                "cmp byte ptr[{graph} + {idx} * 8 + 2], 2",
+                "jge 30f",
+                "movzx {res:e}, byte ptr[{graph} + {idx} * 8 + 2]",
+                "ret",
+            "30:",
+                "push {idx}",
+                "movzx {idx:e}, word ptr[{graph} + {idx} * 8]",
+                "call 20b",
+                "mov {idx}, [rsp]",
+                "push {res}",
+                "movzx {idx:e}, word ptr[{graph} + {idx} * 8 + 4]",
+                "call 20b",
+                "pop {tmp}",
+                "pop {idx}",
+                "cmp byte ptr[{graph} + {idx} * 8 + 2], 3",
+                "jne 31f",
+                "or {res:e}, {tmp:e}",
+                "ret",
+            "31:",
+                "jl 32f",
+                "xor {res:e}, {tmp:e}",
+                "ret",
+            "32:",
+                "and {res:e}, {tmp:e}",
+                "ret",
+            "40:",
+                graph = in(reg) graph,
+                idx = inout(reg) idx as usize => _,
+                res = out(reg) res,
+                tmp = out(reg) _,
+            );
+            total = res + total * 2;
+            // unsafe fn value_of(graph: &mut [Node; 36 * 36 * 36], idx: usize) -> u64 {
+            //     let &mut Node {
+            //         a: a_1,
+            //         ctrl,
+            //         _padding1,
+            //         b: b_1,
+            //         _padding2,
+            //     } = graph.get_unchecked_mut(idx);
+            //     if ctrl < 2 {
+            //         ctrl as u64
+            //     } else {
+            //         let a = value_of(graph, a_1 as usize);
+            //         let b = value_of(graph, b_1 as usize);
+            //         let res = match ctrl.cmp(&3) {
+            //             std::cmp::Ordering::Less => a & b,
+            //             std::cmp::Ordering::Equal => a | b,
+            //             std::cmp::Ordering::Greater => a ^ b,
+            //         };
+            //         graph.get_unchecked_mut(idx).ctrl = res as u8;
+            //         res
+            //     }
+            // }
         }
     }
-    res
+    total
 }
 
 #[inline]
