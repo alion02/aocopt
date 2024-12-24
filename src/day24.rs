@@ -135,28 +135,6 @@ unsafe fn inner1(s: &[u8]) -> u64 {
                 tmp = out(reg) _,
             );
             total = res + total * 2;
-            // unsafe fn value_of(graph: &mut [Node; 36 * 36 * 36], idx: usize) -> u64 {
-            //     let &mut Node {
-            //         a: a_1,
-            //         ctrl,
-            //         _padding1,
-            //         b: b_1,
-            //         _padding2,
-            //     } = graph.get_unchecked_mut(idx);
-            //     if ctrl < 2 {
-            //         ctrl as u64
-            //     } else {
-            //         let a = value_of(graph, a_1 as usize);
-            //         let b = value_of(graph, b_1 as usize);
-            //         let res = match ctrl.cmp(&3) {
-            //             std::cmp::Ordering::Less => a & b,
-            //             std::cmp::Ordering::Equal => a | b,
-            //             std::cmp::Ordering::Greater => a ^ b,
-            //         };
-            //         graph.get_unchecked_mut(idx).ctrl = res as u8;
-            //         res
-            //     }
-            // }
         }
     }
     total
