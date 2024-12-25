@@ -29,7 +29,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         locks = inout(reg) locks => _,
         keys = inout(reg) keys => _,
         mask = out(reg) _,
-        i = inout(reg) 43usize*499+3 => _,
+        i = inout(reg) 43usize * 499 + 3 => _,
         ptr = in(reg) s.as_ptr(),
         chunk = out(ymm_reg) _,
         vec_ascii_hash = in(ymm_reg) u8x32::splat(b'#'),
