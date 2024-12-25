@@ -229,9 +229,9 @@ unsafe fn inner2(s: &[u8]) -> &str {
         "vpackusdw {chunk}, {chunk}, {chunk}",
         "vmovq [{graph} + {idx} * 8], {chunk}",
         "mov byte ptr[{graph} + {idx} * 8 + 2], 4",
-        "movzx {tmp:e}, byte ptr[{ptr} + 2]",
-        "and {tmp:l}, [{ptr} + 17]",
-        "cmp {tmp:l}, {ascii_a}",
+        "cmp byte ptr[{ptr} + 2], {ascii_a}",
+        "jl 99f",
+        "cmp byte ptr[{ptr} + 17], {ascii_a}",
         "jl 99f",
         "mov byte ptr[{graph} + {idx} * 8 + 2], 2",
         "mov word ptr[{buf} + {buf_idx} * 2], {idx:x}",
@@ -277,7 +277,6 @@ unsafe fn inner2(s: &[u8]) -> &str {
         end = in(reg) r.end.sub(1),
         buf = in(reg) buf,
         buf_idx = inout(reg) buf_idx,
-        tmp = out(reg) _,
         ascii_O = const b'O',
         ascii_a = const b'a',
         ascii_z = const b'z',
@@ -286,7 +285,6 @@ unsafe fn inner2(s: &[u8]) -> &str {
         options(nostack),
     );
 
-    let check_idx: usize;
     asm!(
     "20:",
         "cmp byte ptr[{ptr} + 5], {ascii_O}",
@@ -314,12 +312,25 @@ unsafe fn inner2(s: &[u8]) -> &str {
     "22:",
         "mov word ptr[{buf} + {buf_idx} * 2], {a:x}",
         "inc {buf_idx:e}",
-        "jmp 40f",
+        "movzx {a:e}, word ptr[{graph} + {b} * 8]",
+        "cmp byte ptr[{graph} + {a} * 8 + 2], 2",
+        "je 200f",
+        "movzx {a:e}, word ptr[{graph} + {b} * 8 + 4]",
+    "200:",
+        "mov word ptr[{buf} + {buf_idx} * 2], {a:x}",
+        "inc {buf_idx:e}",
+        "jmp 99b",
     "23:",
         "mov word ptr[{buf} + {buf_idx} * 2], {b:x}",
         "inc {buf_idx:e}",
-        "mov {b:e}, {a:e}",
-        "jmp 40f",
+        "movzx {b:e}, word ptr[{graph} + {a} * 8]",
+        "cmp byte ptr[{graph} + {b} * 8 + 2], 2",
+        "je 200f",
+        "movzx {b:e}, word ptr[{graph} + {a} * 8 + 4]",
+    "200:",
+        "mov word ptr[{buf} + {buf_idx} * 2], {b:x}",
+        "inc {buf_idx:e}",
+        "jmp 99b",
     "21:",
         "add {ptr}, 19",
         "cmp {ptr}, {end}",
@@ -339,20 +350,13 @@ unsafe fn inner2(s: &[u8]) -> &str {
         buf = in(reg) buf,
         buf_idx = inout(reg) buf_idx,
         a = out(reg) _,
-        b = out(reg) check_idx,
+        b = out(reg) _,
         ascii_O = const b'O',
 
         options(nostack),
     );
 
-    let alt_node_ptr = graph.get_unchecked(check_idx);
-    let a = alt_node_ptr.a;
-    let res = if graph.get_unchecked(a as usize).ctrl == 2 {
-        a
-    } else {
-        alt_node_ptr.b
-    };
-    *buf.get_unchecked_mut(buf_idx) = res;
+    assert_eq!(buf_idx, 8);
 
     static mut OUT: [u32; 32] = [0; 32];
     static REV_IDX: [u32; 36 * 36 * 36] = unsafe {
