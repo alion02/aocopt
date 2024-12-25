@@ -348,15 +348,13 @@ unsafe fn inner2(s: &[u8]) -> &str {
         graph = in(reg) graph,
         end = in(reg) r.end.sub(1),
         buf = in(reg) buf,
-        buf_idx = inout(reg) buf_idx,
+        buf_idx = inout(reg) buf_idx => _,
         a = out(reg) _,
         b = out(reg) _,
         ascii_O = const b'O',
 
         options(nostack),
     );
-
-    assert_eq!(buf_idx, 8);
 
     static mut OUT: [u32; 32] = [0; 32];
     static REV_IDX: [u32; 36 * 36 * 36] = unsafe {
