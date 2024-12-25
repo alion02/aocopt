@@ -9,23 +9,32 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     let locks = LOCKS.as_mut_ptr();
     let keys = KEYS.as_mut_ptr();
 
-    {
-        let ptr = s.as_ptr();
-        let mut locks = locks;
-        let mut keys = keys.cast::<u32>();
-        for i in 0..500 {
-            let chunk = ptr.add(i * 43 + 3).cast::<u8x32>().read_unaligned();
-            let chunk = chunk.simd_eq(Simd::splat(b'#'));
-            let mask = chunk.to_bitmask() as u32;
-            if mask & 1 == 1 {
-                *keys = mask;
-                keys = keys.add(1);
-            } else {
-                *locks = mask;
-                locks = locks.add(1);
-            }
-        }
-    }
+    asm!(
+        "jmp 20f",
+    "21:",
+        "mov [{locks}], {mask:e}",
+        "add {locks}, 4",
+        "add {i:e}, -43",
+        "jl 30f",
+    "20:",
+        "vpcmpeqb {chunk}, {vec_ascii_hash}, [{ptr} + {i}]",
+        "vpmovmskb {mask:e}, {chunk}",
+        "test {mask:l}, 1",
+        "jnz 21b",
+        "mov [{keys}], {mask:e}",
+        "add {keys}, 4",
+        "add {i:e}, -43",
+        "jge 20b",
+    "30:",
+        locks = inout(reg) locks => _,
+        keys = inout(reg) keys => _,
+        mask = out(reg) _,
+        i = inout(reg) 43usize*499+3 => _,
+        ptr = in(reg) s.as_ptr(),
+        chunk = out(ymm_reg) _,
+        vec_ascii_hash = in(ymm_reg) u8x32::splat(b'#'),
+        options(nostack),
+    );
 
     let mut sums = i32x8::splat(0);
     for i in 0..250 {
