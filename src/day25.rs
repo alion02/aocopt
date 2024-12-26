@@ -4,42 +4,52 @@ use super::*;
 #[repr(align(64))]
 unsafe fn inner1(s: &[u8]) -> u32 {
     static mut LOCKS: [u32; 250] = [0; 250];
-    static mut KEYS: [u32x8; 32] = [Simd::from_array([!0; 8]); 32];
+    static mut KEYS: [u32x8; 32] = [u32x8::from_array([!0; 8]); 32];
+    static mut KEY_BUCKETS: [[u32; 250]; 6] = [[0; 250]; 6];
 
     let locks = LOCKS.as_mut_ptr();
     let keys = KEYS.as_mut_ptr();
 
-    asm!(
-        "jmp 20f",
-    "21:",
-        "mov [{locks}], {mask:e}",
-        "add {locks}, 4",
-        "add {i:e}, -43",
-        "jl 30f",
-    "20:",
-        "vpcmpeqb {chunk}, {vec_ascii_hash}, [{ptr} + {i}]",
-        "vpmovmskb {mask:e}, {chunk}",
-        "test {mask:l}, 1",
-        "jnz 21b",
-        "mov [{keys}], {mask:e}",
-        "add {keys}, 4",
-        "add {i:e}, -43",
-        "jge 20b",
-    "30:",
-        locks = inout(reg) locks => _,
-        keys = inout(reg) keys => _,
-        mask = out(reg) _,
-        i = inout(reg) 43usize * 499 + 3 => _,
-        ptr = in(reg) s.as_ptr(),
-        chunk = out(ymm_reg) _,
-        vec_ascii_hash = in(ymm_reg) u8x32::splat(b'#'),
-        options(nostack),
-    );
+    let mut end_indices = [0; 6];
+
+    {
+        let ptr = s.as_ptr();
+        let mut locks = locks;
+        let buckets = &mut KEY_BUCKETS;
+        let mut indices = [0; 6];
+        for i in 0..500 {
+            let chunk = ptr.add(i * 43 + 3).cast::<u8x32>().read_unaligned();
+            let chunk = chunk.simd_eq(Simd::splat(b'#'));
+            let mask = chunk.to_bitmask() as u32;
+            if mask & 1 == 1 {
+                let bucket = (mask & 0b1000001000001000001000001000).count_ones() as usize;
+                let idx = indices.get_unchecked_mut(bucket);
+                *buckets.get_unchecked_mut(bucket).get_unchecked_mut(*idx) = mask;
+                *idx += 1;
+            } else {
+                *locks = mask;
+                locks = locks.add(1);
+            }
+        }
+        let mut keys = keys.cast::<u32>();
+        let mut end_idx = 0;
+        for i in 0..6 {
+            end_idx += indices[i];
+            end_indices[5 - i] = end_idx;
+            for j in 0..indices[i] {
+                *keys = *buckets[i].get_unchecked(j);
+                keys = keys.add(1);
+            }
+        }
+    }
 
     let mut sums = i32x8::splat(0);
     for i in 0..250 {
-        for j in 0..32 {
-            sums += (Simd::splat(*locks.add(i)) & *keys.add(j))
+        let mask = *locks.add(i);
+        let height = (mask & 0b1000001000001000001000001000).count_ones() as usize;
+        let end = *end_indices.get_unchecked(height);
+        for j in (0..end).step_by(8) {
+            sums += (Simd::splat(mask) & *keys.byte_add(j * 4))
                 .simd_eq(Simd::splat(0))
                 .to_int();
         }
