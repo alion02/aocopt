@@ -4,73 +4,152 @@ use super::*;
 #[repr(align(64))]
 unsafe fn inner1(s: &[u8]) -> u32 {
     static mut LOCKS: [u32; 250] = [0; 250];
-    static mut KEYS: [u32x8; 32] = [u32x8::from_array([!0; 8]); 32];
-    static mut KEY_BUCKETS: [[u32; 250]; 6] = [[0; 250]; 6];
+    static mut KEYS: [u32x8; 32] = [Simd::from_array([!0; 8]); 32];
 
     let locks = LOCKS.as_mut_ptr();
     let keys = KEYS.as_mut_ptr();
 
-    let mut end_indices = [0; 6];
-
-    const FIRST_COL_MASK: u32 = 0b1000001000001000001000001000;
-
-    {
-        let ptr = s.as_ptr();
-        let mut locks = locks;
-        let buckets = &mut KEY_BUCKETS;
-        let mut indices = [0; 6];
-        for i in 0..500 {
-            let chunk = ptr.add(i * 43 + 3).cast::<u8x32>().read_unaligned();
-            let chunk = chunk.simd_eq(Simd::splat(b'#'));
-            let mask = chunk.to_bitmask() as u32;
-            if mask & 1 == 1 {
-                let bucket = (mask & FIRST_COL_MASK).count_ones() as usize;
-                let idx = indices.get_unchecked_mut(bucket);
-                *buckets.get_unchecked_mut(bucket).get_unchecked_mut(*idx) = mask;
-                *idx += 1;
-            } else {
-                *locks = mask;
-                locks = locks.add(1);
-            }
-        }
-        let mut keys = keys.cast::<u32>();
-        let mut end_idx = 0;
-        for i in 0..6 {
-            end_idx += indices[i];
-            end_indices[5 - i] = end_idx;
-            for j in 0..indices[i] {
-                *keys = *buckets[i].get_unchecked(j);
-                keys = keys.add(1);
-            }
-        }
-    }
+    asm!(
+        "jmp 20f",
+    "21:",
+        "mov [{locks}], {mask:e}",
+        "add {locks}, 4",
+        "add {i:e}, -43",
+        "jl 30f",
+    "20:",
+        "vpcmpeqb {chunk}, {vec_ascii_hash}, [{ptr} + {i}]",
+        "vpmovmskb {mask:e}, {chunk}",
+        "test {mask:l}, 1",
+        "jnz 21b",
+        "mov [{keys}], {mask:e}",
+        "add {keys}, 4",
+        "add {i:e}, -43",
+        "jge 20b",
+    "30:",
+        locks = inout(reg) locks => _,
+        keys = inout(reg) keys => _,
+        mask = out(reg) _,
+        i = inout(reg) 43usize * 499 + 3 => _,
+        ptr = in(reg) s.as_ptr(),
+        chunk = out(ymm_reg) _,
+        vec_ascii_hash = in(ymm_reg) u8x32::splat(b'#'),
+        options(nostack),
+    );
 
     let mut sums = i32x8::splat(0);
 
-    for i in (0..250).rev() {
-        let mask = *locks.add(i);
-        let height = (mask & FIRST_COL_MASK).count_ones() as usize;
-        let end = *end_indices.get_unchecked(height);
-        asm!(
-        "20:",
-            "vpand {chunk}, {vmask}, [{keys} + {j} * 4]",
-            "vpcmpeqd {chunk}, {chunk}, {vzero}",
-            "vpaddd {sums}, {sums}, {chunk}",
-            "add {j}, 8",
-            "cmp {j}, {end}",
-            "jl 20b",
-            keys = in(reg) keys,
-            j = inout(reg) 0usize => _,
-            sums = inout(ymm_reg) sums,
-            vmask = in(ymm_reg) u32x8::splat(mask),
-            vzero = in(ymm_reg) u32x8::splat(0),
-            chunk = out(ymm_reg) _,
-            end = in(reg) end,
-            options(readonly, nostack),
-        );
-    }
+    asm!(
+    "20:",
+        "vpbroadcastd {lock}, [{locks} + {i}]",
+        "vpand {tmp}, {lock}, [rip + {keys}+0]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+32]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+64]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+96]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+128]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+160]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+192]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+224]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+256]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+288]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+320]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+352]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+384]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+416]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+448]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+480]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+512]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+544]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+576]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+608]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+640]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+672]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+704]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+736]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+768]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+800]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+832]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+864]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+896]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+928]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+960]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "vpand {tmp}, {lock}, [rip + {keys}+992]",
+        "vpcmpeqd {tmp}, {tmp}, {vzero}",
+        "vpsubd {sums}, {sums}, {tmp}",
+        "add {i:e}, -4",
+        "jge 20b",
+        keys = sym KEYS,
+        locks = in(reg) locks,
+        i = inout(reg) 996usize => _,
+        vzero = in(ymm_reg) u32x8::splat(0),
+        tmp = out(ymm_reg) _,
+        lock = out(ymm_reg) _,
+        sums = inout(ymm_reg) sums,
+        options(nostack, readonly),
+    );
 
-    -sums.reduce_sum() as u32
+    sums.reduce_sum() as u32
 }
 
 #[inline]
