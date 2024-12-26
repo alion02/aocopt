@@ -5,9 +5,11 @@ use super::*;
 unsafe fn inner1(s: &[u8]) -> u32 {
     static mut LOCKS: [u32; 250] = [0; 250];
     static mut KEYS: [u32x8; 32] = [Simd::from_array([!0; 8]); 32];
+    static mut BUCKETS: [[u32; 250]; 6] = [[0; 250]; 6];
 
     let locks = LOCKS.as_mut_ptr();
     let keys = KEYS.as_mut_ptr();
+    let buf = &mut [0usize; 6];
 
     asm!(
         "jmp 20f",
@@ -28,6 +30,9 @@ unsafe fn inner1(s: &[u8]) -> u32 {
         "vpmovmskb {mask:e}, {chunk}",
         "test {mask:l}, 1",
         "jnz 21b",
+        "andn {height:e}, {col_mask:e}, {mask:e}",
+        "popcnt {height:e}, {height:e}",
+        "mov {tmp:e}, {height:e}",
         "mov [{keys}], {mask:e}",
         "add {keys}, 4",
         "vpcmpeqb {chunk}, {vec_ascii_hash}, [{ptr} + {i} - 43]",
@@ -42,6 +47,8 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     "30:",
         locks = inout(reg) locks => _,
         keys = inout(reg) keys => _,
+        // buckets = in(reg) &mut BUCKETS,
+        // buf = inout(reg) &mut BUCKETS => _,
         mask = out(reg) _,
         i = inout(reg) 43usize * 499 + 3 => _,
         ptr = in(reg) s.as_ptr(),
