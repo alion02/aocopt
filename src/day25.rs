@@ -12,6 +12,8 @@ unsafe fn inner1(s: &[u8]) -> u32 {
 
     let mut end_indices = [0; 6];
 
+    const FIRST_COL_MASK: u32 = 0b1000001000001000001000001000;
+
     {
         let ptr = s.as_ptr();
         let mut locks = locks;
@@ -22,7 +24,7 @@ unsafe fn inner1(s: &[u8]) -> u32 {
             let chunk = chunk.simd_eq(Simd::splat(b'#'));
             let mask = chunk.to_bitmask() as u32;
             if mask & 1 == 1 {
-                let bucket = (mask & 0b1000001000001000001000001000).count_ones() as usize;
+                let bucket = (mask & FIRST_COL_MASK).count_ones() as usize;
                 let idx = indices.get_unchecked_mut(bucket);
                 *buckets.get_unchecked_mut(bucket).get_unchecked_mut(*idx) = mask;
                 *idx += 1;
@@ -44,14 +46,17 @@ unsafe fn inner1(s: &[u8]) -> u32 {
     }
 
     let mut sums = i32x8::splat(0);
+
     for i in 0..250 {
         let mask = *locks.add(i);
-        let height = (mask & 0b1000001000001000001000001000).count_ones() as usize;
+        let height = (mask & FIRST_COL_MASK).count_ones() as usize;
         let end = *end_indices.get_unchecked(height);
-        for j in (0..end).step_by(8) {
+        let mut j = 0;
+        while j < end {
             sums += (Simd::splat(mask) & *keys.byte_add(j * 4))
                 .simd_eq(Simd::splat(0))
                 .to_int();
+            j += 8;
         }
     }
 
