@@ -47,17 +47,27 @@ unsafe fn inner1(s: &[u8]) -> u32 {
 
     let mut sums = i32x8::splat(0);
 
-    for i in 0..250 {
+    for i in (0..250).rev() {
         let mask = *locks.add(i);
         let height = (mask & FIRST_COL_MASK).count_ones() as usize;
         let end = *end_indices.get_unchecked(height);
-        let mut j = 0;
-        while j < end {
-            sums += (Simd::splat(mask) & *keys.byte_add(j * 4))
-                .simd_eq(Simd::splat(0))
-                .to_int();
-            j += 8;
-        }
+        asm!(
+        "20:",
+            "vpand {chunk}, {vmask}, [{keys} + {j} * 4]",
+            "vpcmpeqd {chunk}, {chunk}, {vzero}",
+            "vpaddd {sums}, {sums}, {chunk}",
+            "add {j}, 8",
+            "cmp {j}, {end}",
+            "jl 20b",
+            keys = in(reg) keys,
+            j = inout(reg) 0usize => _,
+            sums = inout(ymm_reg) sums,
+            vmask = in(ymm_reg) u32x8::splat(mask),
+            vzero = in(ymm_reg) u32x8::splat(0),
+            chunk = out(ymm_reg) _,
+            end = in(reg) end,
+            options(readonly, nostack),
+        );
     }
 
     -sums.reduce_sum() as u32
